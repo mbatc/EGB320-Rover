@@ -18,9 +18,10 @@ class NavViz:
     self.impl.process_inputs()
     return should_close
 
-  def draw(self, env):
-    imgui.new_frame()
+  def draw(self, env, path):
+    scale = 200
 
+    imgui.new_frame()
     imgui.begin("Custom window", True)
     draw_list  = imgui.get_window_draw_list()
     wnd_pos    = imgui.get_window_position()
@@ -36,7 +37,11 @@ class NavViz:
       elif entity.type == 'obstacle': col = imgui.get_color_u32_rgba(0, 1, 0, 1)
       elif entity.type == 'rover':    col = imgui.get_color_u32_rgba(0.3, 0.3, 0.3, 1)
       elif entity.type == 'explore':  col = imgui.get_color_u32_rgba(1, 0, 0, 1)
-      draw_list.add_circle(entity.body.position.x * 100 + wnd_center[0], 100 * entity.body.position.y + wnd_center[1], entity.body.radius* 100, col)
+      draw_list.add_circle(entity.body.position.x * scale + wnd_center[0], scale * entity.body.position.y + wnd_center[1], entity.body.radius * scale, col)
+
+    if (len(path) > 1):
+      for i in range(len(path) - 1):
+        draw_list.add_line(path[i][0] * scale + wnd_center[0], path[i][1] * scale + wnd_center[1], path[i + 1][0] * scale + wnd_center[0], path[i + 1][1] * scale + wnd_center[1], imgui.get_color_u32_rgba(0, 0, 1, 1))
 
     imgui.end()
 

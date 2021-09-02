@@ -1,6 +1,6 @@
 # Import navigation code
 from nav_viz    import NavViz
-from navigation import Navigator
+from Navigation import Navigator
 from geometry   import *
 import traceback
 
@@ -22,11 +22,15 @@ if __name__ == '__main__':
     nav.on_target_reached('lander', roverBotSim.DropSample)
     nav.on_target_reached('sample', roverBotSim.CollectSample)
     nav.on_target_reached('rock',   roverBotSim.CollectSample)
+    nav.environment.add('lander', Circle(Vector(0,0), 0.4))
 
     while True:
       nav_viz.update()
       # roverBotSim.SetTargetVelocities(0.1, 10)
       robotPose, _, _, _ = roverBotSim.UpdateObjectPositions()
+
+      if robotPose == None:
+        continue
 
       # For now, explicitly set the robots location in the world
       nav.set_rover(Vector(robotPose[0], robotPose[1]), robotPose[5])
@@ -51,12 +55,12 @@ if __name__ == '__main__':
             nav.explore()
             print('Exploring To ' + str(nav.target.body.position))
 
-      nav_viz.draw(nav.environment)
+      nav_viz.draw(nav.environment, nav.current_path)
       nav.update_path()
 
       print(robotPose[5], str(nav.get_direction()), str(nav.get_dir_correction()))
 
-      roverBotSim.SetTargetVelocities(0.01 + nav.get_speed() * 0.02, nav.get_dir_correction())
+      roverBotSim.SetTargetVelocities(0.01 + nav.get_speed() * 0.03, nav.get_dir_correction())
 
   # except Exception as e:
   #   traceback.print_exc()

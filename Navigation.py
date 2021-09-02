@@ -21,6 +21,7 @@ class Navigator:
     self.explore_point = self.environment.get_entities('explore')[0]
     self.current_path  = [] # An array of vectors
     self.target        = None
+    self.last_target   = None
     self.on_reached    = {}
     self.__is_exploring = False
 
@@ -108,8 +109,9 @@ class Navigator:
       self.target = entity_list[0]
       return True
 
-    while self.target == None or self.target == self.rover:
+    while self.target == None or self.target == self.rover or self.last_target == self.target:
       self.target = entity_list[random.randrange(0, len(entity_list) - 1)]
+    self.last_target = self.target
     self.__is_exploring = False
     return True
 
@@ -127,7 +129,7 @@ class Navigator:
     Specify a maximum number of steps to take before terminating.
     '''
     nav_body    = Circle(self.rover.body.position, self.rover.body.radius)
-    path_finder = PathFinder(self.environment, nav_body, self.rover, self.target, 0.1)
+    path_finder = PathFinder(self.environment, nav_body, self.rover, self.target, 0.05)
 
     success = False
     try:

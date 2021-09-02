@@ -99,11 +99,17 @@ class PathFinder:
       next_node = PathNode(self.current_node.content + direction)
       self.expand_frontier(next_node, self.current_node)
 
-  def calc_cost(self, position, prev_node = None):
+  def calc_cost(self, test_node, prev_node = None):
     '''
     The heuristic to use when searching for a path.
     '''
-    return self.target_entity.distance(self.get_environment_position(position))
+    cost = 0
+    
+    colliding_body = self.environment.get_first_colliding(self.nav_body)
+    if not (colliding_body == None or colliding_body in self.ignored or self.is_goal(test_node)):
+      cost = cost + 1000 + vec2_mag_sqr(test_node.content - colliding_body.position)
+    cost = cost + self.target_entity.distance(self.get_environment_position(test_node.content))
+    return cost
 
   def get_environment_position(self, path_position):
     return path_position * self.precision
@@ -118,14 +124,12 @@ class PathFinder:
     self.nav_body.position = self.get_environment_position(test_node.content)
     if not intersect(self.extents, self.nav_body):
       return False
-
-    colliding_body = self.environment.get_first_colliding(self.nav_body)
-    return colliding_body == None or colliding_body in self.ignored or self.is_goal(test_node)
+    return True
 
   def expand_frontier(self, new_node, prev_node):
     if new_node.content in self.explored or not self.can_enter(new_node):
       return False
     new_node.set_previous(prev_node)
-    cost = self.calc_cost(new_node.content, prev_node)
+    cost = self.calc_cost(new_node, prev_node)
     self.frontier.put(PrioritizedItem(cost, new_node))
     return True
