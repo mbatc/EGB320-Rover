@@ -6,9 +6,9 @@ import random
 
 entity_size = {
   'rover':    0.1,
-  'rock':     0.1,
-  'sample':   0.1,
-  'obstacle': 0.1,
+  'rock':     0.05,
+  'sample':   0.05,
+  'obstacle': 0.15,
   'lander':   0.5
 }
 
@@ -110,7 +110,7 @@ class Navigator:
       return True
 
     while self.target == None or self.target == self.rover or self.last_target == self.target:
-      self.target = entity_list[random.randrange(0, len(entity_list) - 1)]
+      self.target = entity_list[random.randrange(0, len(entity_list))]
     self.last_target = self.target
     self.__is_exploring = False
     return True
@@ -119,8 +119,9 @@ class Navigator:
     '''
     Clear the current path and reset the target object
     '''
-    self.target       = None
-    self.current_path = []
+    self.target        = None
+    self.current_path  = []
+    self.explore_point.body.position = Vector(-10000, -10000)
 
   def update_path(self, max_steps = 1000):
     '''
@@ -128,6 +129,12 @@ class Navigator:
 
     Specify a maximum number of steps to take before terminating.
     '''
+
+    if self.is_exploring():
+      if self.environment.get_first_colliding(self.explore_point.body) != None:
+        self.clear_path()
+        return True
+
     nav_body    = Circle(self.rover.body.position, self.rover.body.radius)
     path_finder = PathFinder(self.environment, nav_body, self.rover, self.target, 0.05)
 
@@ -138,9 +145,9 @@ class Navigator:
           success = True
           break
       node = path_finder.found_node if path_finder.found_node != None else path_finder.best_node
-      if node != None:
+      if node != None and node.path != None:
         self.current_path = [ path_finder.get_environment_position(point.content) for point in node.path ]
-      
+
       if len(self.current_path) < 2:
         self.clear_path()
     except:

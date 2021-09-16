@@ -31,6 +31,12 @@ class PathNode:
 
   def prev(self):
     return self.path[-2] if len(self.path) > 1 else None
+  
+  def __hash__(self):
+    return NotImplemented
+
+  def __eq__(self, other):
+    return NotImplemented
 
 class PathFinder:
   '''
@@ -50,7 +56,7 @@ class PathFinder:
     self.frontier      = PriorityQueue()
     self.extents       = self.environment.get_extents()
     self.ignored       = self.environment.get_colliding(nav_body)
-    
+
     # Limit to 8 potential directions for path search
     self.steps = [
       Vector(x=0, y=1),
@@ -107,7 +113,7 @@ class PathFinder:
     
     colliding_body = self.environment.get_first_colliding(self.nav_body)
     if not (colliding_body == None or colliding_body in self.ignored or self.is_goal(test_node)):
-      cost = cost + 1000 + vec2_mag_sqr(test_node.content - colliding_body.position)
+      cost = cost + 1000 + vec2_mag_sqr(test_node.content - colliding_body.position())
     cost = cost + self.target_entity.distance(self.get_environment_position(test_node.content))
     return cost
 

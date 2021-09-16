@@ -22,7 +22,7 @@ if __name__ == '__main__':
     nav.on_target_reached('lander', roverBotSim.DropSample)
     nav.on_target_reached('sample', roverBotSim.CollectSample)
     nav.on_target_reached('rock',   roverBotSim.CollectSample)
-    nav.environment.add('lander', Circle(Vector(0,0), 0.4))
+    # nav.environment.add('lander', Circle(Vector(0,0), 0.4))
 
     while True:
       nav_viz.update()
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
       print(robotPose[5], str(nav.get_direction()), str(nav.get_dir_correction()))
 
-      roverBotSim.SetTargetVelocities(0.01 + nav.get_speed() * 0.03, nav.get_dir_correction())
+      roverBotSim.SetTargetVelocities(0.005 + nav.get_speed() * 0.02, nav.get_dir_correction())
 
   # except Exception as e:
   #   traceback.print_exc()
