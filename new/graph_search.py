@@ -53,11 +53,11 @@ class GraphSearch:
   Performs a simple graph search using on the root node specified.
   '''
   def __init__(self):
-    self.frontier  = queue.PriorityQueue()
-    self.explored  = set() # The set of explored nodes
-    self.best      = None # The best node found so far
-    self.best_cost = sys.float_info.max
-    self.goal      = None # The goal that was found
+    self.__frontier  = queue.PriorityQueue()
+    self.__explored  = set() # The set of explored nodes
+    self.__best      = None # The best node found so far
+    self.__best_cost = sys.float_info.max
+    self.__goal      = None # The goal that was found
 
   def search(self):
     '''
@@ -66,25 +66,25 @@ class GraphSearch:
     Returns false if the search has not completed. 
     '''
 
-    if self.frontier.empty():
+    if self.__frontier.empty():
       raise Exception("The goal not could not be found")
-    cost, node = self.frontier.get()
+    cost, node = self.__frontier.get()
 
     # Check if this is the best node we have found
-    if cost < self.best_cost:
-      self.best      = node
-      self.best_cost = cost
+    if cost < self.__best_cost:
+      self.__best      = node
+      self.__best_cost = cost
 
     # Check if we have found the the goal node
     if node.is_goal():
-      self.goal = node
+      self.__goal = node
     else:
       # Add all neighbours of 'node' to the frontier
       for neighbour in node.get_neighbours():
-        if neighbour not in self.explored:
-          self.frontier.put(PrioritizedItem(neighbour.cost(), neighbour))
+        if neighbour not in self.__explored:
+          self.__frontier.put(PrioritizedItem(neighbour.cost(), neighbour))
 
       # Add 'node' to the explored set
-      self.explored.add(node)
+      self.__explored.add(node)
 
-    return self.goal != None
+    return self.__goal != None

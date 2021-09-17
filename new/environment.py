@@ -1,5 +1,6 @@
 
 from typing import get_args
+from enum import *
 
 def weighted_average(a, b, a_w, b_w):
   return (a * a_w + b * b_w) / (a_w + b_w)
@@ -85,6 +86,14 @@ class Environment:
     '''
     if not self.update_entity(entity_type, position, angle, confidence):
       self.add_entity(entity_type, position, angle, confidence)
+
+  def select_entity(self, entity_type):
+    '''
+    Find an entity in the map of the selected type
+    '''
+    group = self.get_group(entity_type)
+      
+
 
   def remove(self, entity:Entity):
     '''
