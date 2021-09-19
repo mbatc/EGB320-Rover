@@ -1,5 +1,6 @@
 import queue
 import sys
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,7 +23,7 @@ class Node:
     '''
     Test if this PathNode is the goal.
     '''
-    return 
+    return False
 
   def path(self):
     '''
@@ -59,12 +60,22 @@ class GraphSearch:
     self.__best_cost = sys.float_info.max
     self.__goal      = None # The goal that was found
 
+  def expand_frontier(self, node):
+    if node in self.__explored:
+      return False
+
+    self.__frontier.put(PrioritizedItem(node.cost(), node))
+    return True
+
   def search(self):
     '''
     Perform a step in the GraphSearch.
     Returns true if the goal was found.
     Returns false if the search has not completed. 
     '''
+
+    if self.__goal != None:
+      return self.__goal
 
     if self.__frontier.empty():
       raise Exception("The goal not could not be found")
@@ -81,10 +92,9 @@ class GraphSearch:
     else:
       # Add all neighbours of 'node' to the frontier
       for neighbour in node.get_neighbours():
-        if neighbour not in self.__explored:
-          self.__frontier.put(PrioritizedItem(neighbour.cost(), neighbour))
+        self.expand_frontier(neighbour)
 
       # Add 'node' to the explored set
       self.__explored.add(node)
 
-    return self.__goal != None
+    return self.__goal

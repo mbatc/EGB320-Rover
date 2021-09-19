@@ -1,16 +1,22 @@
 
+from sys import float_info
 from typing import get_args
 from enum import *
+
+from geometry import *
+
+import math
 
 def weighted_average(a, b, a_w, b_w):
   return (a * a_w + b * b_w) / (a_w + b_w)
 
 class Entity:
-  def __init__(self, entity_type, position, angle, confidence):
+  def __init__(self, entity_type, position, angle, confidence, body):
     self.__entity_type = entity_type
     self.__position    = position
     self.__angle       = angle
     self.__confidence  = confidence
+    self.__body        = body
 
   def update_position(self, new_pos, new_angle, new_confidence):
     '''
@@ -20,6 +26,12 @@ class Entity:
     self.__position   = weighted_average(self.position(), new_pos, self.confidence(), new_confidence)
     self.__position   = weighted_average(self.angle(), new_angle, self.confidence(), new_confidence)
     self.__confidence = (new_confidence + self.confidence()) * 0.5
+
+  def set_position(self, new_pos):
+    self.__position = new_pos
+
+  def body(self):
+    return self.__body
 
   def type(self):
     return self.__entity_type
@@ -61,13 +73,16 @@ class Environment:
       self.groups[entity_type] = []
     return self.groups[entity_type]
 
+  def has_entities(self, entity_type):
+    return entity_type in self.groups and len(self.groups[entity_type]) > 0
+
   def update_entity(self, entity_type, position, angle, confidence):
     '''
     Attempt to update an existing entity in the environment map.
     Returns True if an entity was successfully updated. 
     Returns False if no entitiy was updated.
     '''
-    pass
+    return None
 
   def add_entity(self, entity_type, position, angle, confidence):
     '''
@@ -79,21 +94,103 @@ class Environment:
     group.append(new_entity)
     self.entities.append(new_entity)
 
+    return new_entity
+
   def add_or_update_entity(self, entity_type, position, angle, confidence):
     '''
     Attempt to update an existing entity. If updating fails, add a new entity to
     the environment.
     '''
-    if not self.update_entity(entity_type, position, angle, confidence):
-      self.add_entity(entity_type, position, angle, confidence)
+    new_entity = self.update_entity(entity_type, position, angle, confidence)
+    if new_entity == None:
+      new_entity = self.add_entity(entity_type, position, angle, confidence)
+    return new_entity
 
-  def select_entity(self, entity_type):
+  def bring_to_center(self, entity:Entity):
     '''
-    Find an entity in the map of the selected type
+    Make an entity the center of the map. This will position all other entities relative
+    to this entity. This entities position/orientation
     '''
-    group = self.get_group(entity_type)
-      
+    offset = entity.position()
+    for other in self.entities:
+      # TODO: Perhaps adjust the confidence when we shift the entities.
+      # TODO: Might be worthwhile also removing rotation.
+      other.set_position(other.position() - offset)
 
+  def find_closest(self, entity_type, position):
+    '''
+    Find the entity that is closest to the 'position' specified.
+    '''
+    closest_dist   = float_info.max
+    closest_entity = None
+    if entity_type is list:
+      for type in entity_type:
+        entity, dist = self.find_closest(type, position)
+        if dist < closest_dist:
+          closest_entity = entity
+          closest_dist   = dist
+    else:
+      for entity in self.get_group(entity_type):
+        dist = vec2_mag_sqr(entity.position() - position)
+        if dist < closest_dist:
+          closest_entity = entity
+          closest_dist   = dist
+      closest_dist = sqrt(closest_dist)
+
+    return closest_entity, closest_dist
+
+  def prune_visible(self, visible_entities, cam_pos, cam_dir, cam_fov):
+    '''
+    This function will prune invalid entities from the map based on
+    the visibility of other entities and the camera properties.
+
+    If an entity is in-front of a visible entity (and should be visible),
+    but is not in the visible_entities list, it will be removed.
+    '''
+    unit_cam_dir       = cam_dir.unit()
+    visible_candidates = []
+    direction_limit = math.cos(cam_fov / 2)
+
+    # Find potential visible entities
+    for entity in self.entities:
+      to_entity  = entity.position() - cam_pos
+      entity_dir = to_entity.unit()
+      in_view   = vec2_dot(entity_dir, unit_cam_dir) > direction_limit
+      if in_view:
+        visible_candidates.append(entity)
+
+    # Check for entities that should be occluding the 'visible' entities
+    # They need to be removed
+    for entity in visible_entities:
+      for occluder in visible_candidates:
+        if entity is occluder:
+          continue
+        to_occluder = Line(cam_pos, occluder.position())
+        to_entity   = Line(cam_pos, entity.position())
+        is_in_front = to_entity.length_sqr() > to_occluder.length_sqr()
+        if is_in_front and intersect(to_entity, occluder.body()):
+          # entity should be occluded by occluder, so occluder should be
+          # visible. Remove occluder from the map.
+          self.remove(occluder)
+
+    # Check for potentially visible entities that should not be occluded the 'visible' entities
+    # They need to be removed
+    for entity in visible_candidates:
+      is_occluded = False
+      for occluder in visible_entities:
+        if entity is occluder:
+          is_occluded = True
+          break
+
+        to_entity   = Line(cam_pos, entity.position())
+        to_occluder = Line(cam_pos, occluder.position())
+        is_in_front = to_entity.length_sqr() > to_occluder.length_sqr()
+        if is_in_front and intersect(to_entity, occluder.body()):
+          is_occluded = True
+          break
+
+      if not is_occluded:
+        self.remove(entity)
 
   def remove(self, entity:Entity):
     '''

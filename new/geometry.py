@@ -148,6 +148,12 @@ class Line(Body):
   def end(self):
     return self.__end
 
+  def length(self):
+    return abs(self.__end - self.__start)
+
+  def length_sqr(self):
+    return vec2_mag_sqr(self.__end - self.__start)
+
   def min(self):
     return vec2_min(self.start(), self.end())
 
@@ -162,17 +168,9 @@ def intersect(a, b):
   b_max = b.max()
   return a_max.x > b_min.x and a_max.y > b_min.y and b_max.y > a_min.y and b_max.x > a_min.x
 
-@dispatch(Circle, Circle)
-def intersect(a, b):
-  return abs(a.position() - b.position()) <= a.radius() + b.radius()
-
 @dispatch(Rect, Circle)
 def intersect(a, b):
   return b.contains_point(a.closest_point(b.position()))
-
-@dispatch(Circle, Rect)
-def intersect(a, b):
-  return intersect(b, a)
 
 @dispatch(Rect, Line)
 def intersect(a, b):
@@ -198,7 +196,15 @@ def intersect(a, b):
     return False
   return True
 
-@dispatch(Line, Circle)
+@dispatch(Circle, Circle)
+def intersect(a, b):
+  return abs(a.position() - b.position()) <= a.radius() + b.radius()
+
+@dispatch(Circle, Rect)
+def intersect(a, b):
+  return intersect(b, a)
+
+@dispatch(Circle, Line)
 def intersect(a, b):
   f = b.center() - a.start()
   r = b.radius()
@@ -234,3 +240,11 @@ def intersect(a, b):
   s = (-s1.y * (p0.x - p2.x) + s1.x * (p0.y - p2.y)) / (-s2.x * s1.y + s1.x * s2.y)
   t = ( s2.x * (p0.y - p2.y) - s2.y * (p0.x - p2.x)) / (-s2.x * s1.y + s1.x * s2.y)
   return s >= 0 and s <= 1 and t >= 0 and t <= 1
+
+@dispatch(Line, Rect)
+def intersect(a, b):
+  return intersect(b, a)
+
+@dispatch(Line, Circle)
+def intersect(a, b):
+  return intersect(b, a)
