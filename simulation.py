@@ -15,7 +15,7 @@ sceneParameters = SceneParameters()
 robotParameters = RobotParameters()
 robotParameters.driveType = 'differential'
 
-def to_detected_objects(angle_offset, object_type, object_list):
+def to_detected_objects(object_type, object_list):
   if object_list == None:
     return []
 
@@ -23,18 +23,17 @@ def to_detected_objects(angle_offset, object_type, object_list):
   if len(object_list) > 0:
     if isinstance(object_list[0], list):
       for o in object_list:
-        detected_objects.append(DetectedObject(object_type, o[0] * env_params.meter_scale, angle_offset + o[1], 0))
+        detected_objects.append(DetectedObject(object_type, o[0] * env_params.meter_scale, o[1], 0))
     else:
-      detected_objects.append(DetectedObject(object_type, object_list[0] * env_params.meter_scale, angle_offset + object_list[1], 1))
+      detected_objects.append(DetectedObject(object_type, object_list[0] * env_params.meter_scale, object_list[1], 1))
 
   return detected_objects
 
 if __name__ == '__main__':
-  # try:
     roverBotSim = VREP_RoverRobot('127.0.0.1', robotParameters, sceneParameters)
     roverBotSim.StartSimulator()
 
-    # nav_viz = NavViz()
+    nav_viz    = NavViz()
     nav        = Navigator(roverBotSim)
     rover_pose = RoverPose(Vector(0, 0), 0)
 
@@ -43,8 +42,7 @@ if __name__ == '__main__':
     roverBotSim.UpdateObjectPositions()
 
     while True:
-      # nav_viz.update()
-      # roverBotSim.SetTargetVelocities(0.1, 10)
+      nav_viz.update()
       sim_rover_pos, _, _, _ = roverBotSim.UpdateObjectPositions()
 
       if sim_rover_pos == None:
@@ -55,19 +53,14 @@ if __name__ == '__main__':
 
       sample, lander, obstacle, rock = roverBotSim.GetDetectedObjects()
       visible_objects = []
-      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.ROCK,     rock)
-      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.SAMPLE,   sample)
-      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.OBSTACLE, obstacle)
-      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.LANDER,   lander)
+      visible_objects = visible_objects + to_detected_objects(EntityType.ROCK,     rock)
+      visible_objects = visible_objects + to_detected_objects(EntityType.SAMPLE,   sample)
+      visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
+      visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
 
       nav.update(rover_pose, visible_objects)
-      # nav_viz.draw(nav.environment, nav.current_path)
+      nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
-      # print('(Speed, Ori): ' + str((speed, ori_cor)))
 
       roverBotSim.SetTargetVelocities(speed * 0.02, ori_cor)
-
-  # except Exception as e:
-  #   traceback.print_exc()
-  #   roverBotSim.StopSimulator()

@@ -67,6 +67,9 @@ class Routine:
     '''
     raise Exception("Not Implemented")
 
+  def get_path(self):
+    return []
+
   def on_start(self):
     pass
 

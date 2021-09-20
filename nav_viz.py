@@ -1,7 +1,9 @@
 
+from env_params import EntityType
+from env_params import entity_info
+
 import glfw
 import OpenGL.GL as gl
-
 import imgui
 
 from imgui.integrations.glfw import GlfwRenderer
@@ -20,7 +22,7 @@ class NavViz:
     return should_close
 
   def draw(self, env, path):
-    scale = 200
+    scale = 1
 
     imgui.new_frame()
     imgui.begin("Custom window", True)
@@ -30,19 +32,18 @@ class NavViz:
     wnd_size   = imgui.Vec2(wnd_size.x * 0.5, wnd_size.y * 0.5)
     wnd_center = imgui.Vec2(wnd_pos.x + wnd_size.x, wnd_pos.y + wnd_size.y)
 
-    for entity in env.get_entities():
-      col = imgui.get_color_u32_rgba(1,1,1,1)
-
-      if   entity.type == 'sample':   col = imgui.get_color_u32_rgba(1, 0.3, 0.3, 1)
-      elif entity.type == 'rock':     col = imgui.get_color_u32_rgba(0, 0, 1, 1)
-      elif entity.type == 'obstacle': col = imgui.get_color_u32_rgba(0, 1, 0, 1)
-      elif entity.type == 'rover':    col = imgui.get_color_u32_rgba(0.3, 0.3, 0.3, 1)
-      elif entity.type == 'explore':  col = imgui.get_color_u32_rgba(1, 0, 0, 1)
-      draw_list.add_circle(entity.body.position.x * scale + wnd_center[0], scale * entity.body.position.y + wnd_center[1], entity.body.radius * scale, col)
+    for entity in env.get_group():
+      col_raw = entity_info[entity.type()].colour()
+      col   = imgui.get_color_u32_rgba(col_raw[0], col_raw[1], col_raw[2], col_raw[3])
+      white = imgui.get_color_u32_rgba(1, 1, 1, 1)
+      reg     = entity.size(False).x / 2
+      reg_inf = entity.size(True).x  / 2
+      draw_list.add_circle(entity.position().x * scale + wnd_center[0], scale * entity.position().y + wnd_center[1], reg * scale, col)
+      draw_list.add_circle(entity.position().x * scale + wnd_center[0], scale * entity.position().y + wnd_center[1], reg_inf * scale, white)
 
     if (len(path) > 1):
       for i in range(len(path) - 1):
-        draw_list.add_line(path[i][0] * scale + wnd_center[0], path[i][1] * scale + wnd_center[1], path[i + 1][0] * scale + wnd_center[0], path[i + 1][1] * scale + wnd_center[1], imgui.get_color_u32_rgba(0, 0, 1, 1))
+        draw_list.add_line(path[i][0] * scale + wnd_center[0], path[i][1] * scale + wnd_center[1], path[i + 1][0] * scale + wnd_center[0], path[i + 1][1] * scale + wnd_center[1], imgui.get_color_u32_rgba(1, 1, 1, 1))
 
     imgui.end()
 

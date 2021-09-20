@@ -17,6 +17,7 @@ class Entity:
     self.__angle       = angle
     self.__confidence  = confidence
     self.__body        = body
+    self.missing_time  = 0
 
   def update_position(self, new_pos, new_angle, new_confidence):
     '''
@@ -59,14 +60,26 @@ class Entity:
     return self.__confidence
 
   def intersects(self, other):
-    my_transformed_body    = self.__body.transformed(self.__position, self.__angle)
-    other_transformed_body = other.__body.transformed(other.__position, other.__angle)
+    my_transformed_body    = self.transformed_body()
+    other_transformed_body = other.transformed_body()
     return intersect(my_transformed_body, other_transformed_body)
 
   def intersects_inflated(self, other):
-    my_transformed_body    = self.__body.scale(2 * (1 - self.confidence())).transformed(self.__position, self.__angle)
-    other_transformed_body = other.__body.scale(2 * (1 - other.confidence())).transformed(other.__position, other.__angle)
+    my_transformed_body    = self.inflated_body()
+    other_transformed_body = other.inflated_body()
     return intersect(my_transformed_body, other_transformed_body)
+
+  def inflated_body(self):
+    return self.__body.scale(1 + (1 - self.confidence())).transformed(self.__position, self.__angle)
+
+  def transformed_body(self):
+    return self.__body.transformed(self.__position, self.__angle)
+
+  def size(self, inflated = False):
+    if inflated:
+      return self.inflated_body().extents().size()
+    else:
+      return self.__body.extents().size()
 
   def extents(self):
     '''
@@ -78,8 +91,9 @@ class Environment:
   def __init__(self):
     self.entities = []
     self.groups   = {}
+    self.__rover  = None
 
-  def get_group(self, entity_type):
+  def get_group(self, entity_type=None):
     '''
     Get a group of entities by type.
 
@@ -105,20 +119,27 @@ class Environment:
     existing   = self.find_first_colliding(new_entity, entity_type, True)
     if existing == None:
       return None
-
-    print('Updating Entity ({}, {})'.format(position.x, position.y))
     existing.update_position(position, angle, confidence)
     return existing
 
+  def get_rover(self):
+    return self.__rover
+
   def find_first_colliding(self, entity, entity_type = None, inflated = False):
-    for other in self.get_group(entity_type):
-      if entity is not other:
-        if inflated:
-          if entity.intersects(other):
-            return other
-        else:
-          if entity.intersects_inflated(other):
-            return other
+    if isinstance(entity_type, list):
+      for t in entity_type:
+        other = self.find_first_colliding(entity, t, inflated)
+        if other is not None:
+          return other
+    else:
+      for other in self.get_group(entity_type):
+        if entity is not other:
+          if inflated:
+            if entity.intersects_inflated(other):
+              return other
+          else:
+            if entity.intersects(other):
+              return other
     return None
 
   def add_entity(self, entity_type, position, angle, confidence):
@@ -127,12 +148,17 @@ class Environment:
     '''
     body       = Circle(Vector(0, 0), env_params.entity_info[entity_type].size() / 2)
     new_entity = Entity(entity_type, position, angle, confidence, body)
+
     return self.add_entity_instance(new_entity)
 
   def add_entity_instance(self, new_entity):
     group = self.get_group(new_entity.type())
     group.append(new_entity)
     self.entities.append(new_entity)
+
+    if new_entity.type() == env_params.EntityType.ROVER:
+      self.__rover = new_entity
+
     return new_entity
 
   def add_or_update_entity(self, entity_type, position, angle, confidence):
@@ -142,7 +168,6 @@ class Environment:
     '''
     new_entity = self.update_entity(entity_type, position, angle, confidence)
     if new_entity == None:
-      print('Adding Entity ({}, {})'.format(position.x, position.y))
       new_entity = self.add_entity(entity_type, position, angle, confidence)
     return new_entity
 
@@ -187,7 +212,7 @@ class Environment:
         if updated == None:
           self.add_entity_instance(entity)
 
-  def prune_visible(self, visible_entities, cam_pos, cam_dir, cam_fov):
+  def prune_visible(self, visible_entities, cam_pos, cam_dir, cam_fov, min_dist):
     '''
     This function will prune invalid entities from the map based on
     the visibility of other entities and the camera properties.
@@ -199,10 +224,16 @@ class Environment:
     visible_candidates = []
     direction_limit = math.cos(radians(cam_fov / 2))
 
+    min_dist_sqr = min_dist * min_dist
+
     # Find potential visible entities
     for entity in self.entities:
       to_entity  = entity.position() - cam_pos
       entity_dir = to_entity.unit()
+
+      if vec2_mag_sqr(to_entity) < min_dist_sqr:
+        continue
+
       in_view   = vec2_dot(entity_dir, unit_cam_dir) > direction_limit
       if in_view:
         visible_candidates.append(entity)
@@ -210,6 +241,7 @@ class Environment:
     # Check for entities that should be occluding the 'visible' entities
     # They need to be removed
     for entity in visible_entities:
+      entity.missing_time = 0
       for occluder in visible_candidates:
         if entity is occluder:
           continue
@@ -219,8 +251,7 @@ class Environment:
         if is_in_front and intersect(to_entity, occluder.body()):
           # entity should be occluded by occluder, so occluder should be
           # visible. Remove occluder from the map.
-          self.remove(occluder)
-          print('Pruned: ' + str(occluder))
+          occluder.missing_time = occluder.missing_time + 1
 
     # Check for potentially visible entities that should not be occluded the 'visible' entities
     # They need to be removed
@@ -240,7 +271,13 @@ class Environment:
 
       if not is_occluded:
         self.remove(entity)
+        entity.missing_time = entity.missing_time + 1
+    
+    for entity in self.entities.copy():
+      if entity.missing_time > 5:
+        self.remove(entity)
         print('Pruned: ' + str(entity))
+
 
   def remove(self, entity:Entity):
     '''

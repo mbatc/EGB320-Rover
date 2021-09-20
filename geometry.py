@@ -67,7 +67,13 @@ class Rect(Body):
     return Rect(self.position(), self.size() * amount)
 
   def size(self):
-    return self.max - self.min
+    return self.max() - self.min()
+
+  def min(self):
+    return self.__min
+
+  def max(self):
+    return self.__max
 
   def half_size(self):
     return self.size() * 0.5
@@ -103,7 +109,7 @@ class Circle(Body):
     return self.__radius
 
   def extents(self):
-    return Rect(self.position, Vector(self.radius * 2, self.radius * 2))
+    return Rect(self.position(), Vector(self.radius() * 2, self.radius() * 2))
 
   def transformed(self, translation, rotation):
     return Circle(self.__position + translation, self.__radius, 0)
