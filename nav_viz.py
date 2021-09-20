@@ -3,6 +3,7 @@ import glfw
 import OpenGL.GL as gl
 
 import imgui
+
 from imgui.integrations.glfw import GlfwRenderer
 
 class NavViz:

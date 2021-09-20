@@ -1,8 +1,7 @@
-from enum import *
 from environment import Environment
 from geometry import *
 
-import queue
+import time
 
 from env_params    import *
 from nav_collect   import *
@@ -11,40 +10,31 @@ from nav_explore   import *
 from nav_search    import *
 from nav_flip_rock import *
 
-class RoutineType(Enum):
-  '''
-  This enum describes the navigation routines that
-  have been implemented.
-  '''
-  NONE           = -1,
-  EXPLORE        = 0,
-  SEARCH_LANDER  = 1,
-  SEARCH_ROCK    = 2,
-  SEARCH_SAMPLE  = 3,
-  COLLECT_SAMPLE = 4,
-  DROP_SAMPLE    = 5,
-  FLIP_ROCK      = 6,
-  COUNT          = 7
-
 class RoverPose:
-  def __init__(self, pos, ori):
+  def __init__(self, pos, angle):
     self.__position = pos
-    self.__ori      = ori
+    self.__angle    = angle
 
   def set_position(self, position):
     self.__position = position
 
-  def set_ori(self, ori):
-    self.__ori = ori
+  def set_angle(self, angle):
+    self.__angle = angle
 
   def apply_velocity(self, velocity, dt):
     self.__position = self.__position + velocity * dt
 
   def apply_angular_velocity(self, velocity, dt):
-    self.__ori = self.__ori + velocity * dt
+    self.__angle = self.__angle + velocity * dt
+
+  def get_position(self):
+    return self.__position
+
+  def get_angle(self):
+    return self.__angle
 
 class DetectedObject:
-  def __init__(self, type, heading, distance, angle):
+  def __init__(self, type, distance, heading, angle):
     self.__type     = type
     self.__heading  = heading
     self.__distance = distance
@@ -73,7 +63,7 @@ class DetectedObject:
     return dist_confidence * head_confidence
 
 class Navigator:
-  def __init__(self):
+  def __init__(self, sim):
     self.__current_routine = None
     self.__environment     = Environment()
     self.__routines = {
@@ -86,41 +76,99 @@ class Navigator:
       RoutineType.FLIP_ROCK:      FlipRoutine,
     }
 
-    self.__has_sample        = False
-    self.__last_routine_type = RoutineType.NONE
-    self.__rover             = self.__environment.add_entity(EntityType.ROVER, Vector(0, 0), 0, 1)
+    self.__has_sample         = False
+    self.__try_collect_sample = False
+    self.__try_flip_rock      = False
+    self.__try_drop_sample    = False
+    self.__scs_delay          = 2
+    self.__scs_start_time     = 0
+    self.__is_scs_active      = False
+    self.__routine_delay      = 2
+    self.__routine_end_time   = 0
+    self.__last_routine_type  = RoutineType.NONE
+    self.__rover              = self.__environment.add_entity(EntityType.ROVER, Vector(0, 0), 0, 1)
+    self.__last_update        = time.time()
+    self.__dt                 = 0
+
+    self.__sim = sim
 
   def has_sample(self):
     return self.__has_sample
 
   def update(self, rover_pose, visible_objects):
+    update_time = time.time()
+    self.__dt   = update_time - self.__last_update
+    self.__rover.set_position(rover_pose.get_position())
+    self.__rover.set_angle(rover_pose.get_angle())
+
+    self.update_environment(visible_objects)
+
+    if not self.__is_scs_active:
+      self.update_navigation_routine(self.__dt)
+
+      if self.try_perform_sample_collection_action():
+        self.__is_scs_active  = True
+        self.__scs_start_time = time.time()
+    else:
+      self.__is_scs_active = self.__is_scs_active and time.time() - self.__scs_start_time < self.__scs_delay
+
+  def update_environment(self, visible_objects):
     # Update the map of the environment
     visible_entities = []
     for object in visible_objects:
-      visible_entities.append(self.environment().add_or_update_entity(object.type(), object.calculate_position(), object.angle(), object.get_confidence()))
+      visible_entities.append(self.environment().add_or_update_entity(
+        object.type(),
+        object.calculate_position(),
+        object.angle(),
+        object.get_confidence()))
+
+    # Combine overlapping entities
+    self.environment().combine_overlapping()
 
     # Remove 'ghost' entities
-    rover_pos = Vector(0, 0)
-    rover_dir = 0
-    rover_fov = 90
-    self.environment().prune_visible(
-      visible_entities,
-      rover_pos,
-      rover_dir,
-      rover_fov
-    )
+    rover_pos = self.__rover.position()
+    rover_dir = self.__rover.direction()
+    rover_fov = 60
+    # self.environment().prune_visible(
+    #   visible_entities,
+    #   rover_pos,
+    #   rover_dir,
+    #   rover_fov
+    # )
 
+  def update_navigation_routine(self, dt):
+    '''
+    Update the active navigation routine. This should only be called if the
+    sample collection system is not active.
+    '''
     # Update navigation routine
     if self.routine() == None:
-      next_action = self.decide_action()
-      self.set_routine(next_action)
+      if time.time() - self.__routine_end_time > self.__routine_delay:
+        next_action = self.decide_action()
+        self.set_routine(next_action)
     else:
-      self.routine().update()
+      self.routine().update(dt)
 
       if self.routine().is_done():
         self.finish_routine()
 
+  def try_perform_sample_collection_action(self):
+    '''
+    Try perform an action using the sample collection system.
+    '''
+    if self.__try_collect_sample:
+      self.__sim.CollectSample()
+    elif self.__try_drop_sample:
+      self.__sim.DropSample()
+    elif self.__try_flip_rock:
+      pass
+
+    return False
+
   def decide_action(self):
+    '''
+    Return the next action to take based on the Navigation systems current state.
+    '''
     last_routine = self.__last_routine_type
 
     if self.has_sample():
@@ -142,79 +190,69 @@ class Navigator:
     return RoutineType.EXPLORE
 
   def finish_routine(self):
+    '''
+    Finish the current routine.
+    '''
     if self.__current_routine == None:
       self.__last_routine_type = RoutineType.NONE
     else:
       self.__last_routine_type = self.__current_routine.get_type()
+    self.__current_routine  = None
+    self.__routine_end_time = time.time()
+    print('Finished ' + str(self.__last_routine_type))
 
   def set_routine(self, routine_type):
+    '''
+    Set the current routine being performed
+    '''
     # Check if the routine type has been registered
     if routine_type not in self.__routines:
       raise Exception("Routine type is not registered")
     # Create a new routine of the requested type
     self.__current_routine = self.__routines[routine_type](self)
+    print('Started ' + str(routine_type))
 
   def environment(self):
+    '''
+    Get the Navigation environment.
+    '''
     return self.__environment
 
   def routine(self):
+    '''
+    Get the current Navigation Routine environment.
+    '''
     return self.__current_routine
 
   def get_rover_entity(self):
+    '''
+    Get the entity that represents the Rover.
+    '''
     return self.__rover
 
   def get_control_parameters(self):
-    if self.__current_routine == None:
+    '''
+    Get the current control parameters for the navigation system.
+    '''
+    if self.__is_scs_active or self.__current_routine == None:
       return 0, 0
     else:
       return self.__current_routine.get_control_parameters()
 
-class Routine:
-  '''
-  Base class for a navigation routine.
-  '''
-  def __init__(self, navigator:Navigator):
-    self.__navigator = navigator
-    self.__first_update = True
-    pass
+  def set_collect_sample(self, try_collect_sample):
+    '''
+    Set a flag indicating that we should attempt to collect a sample.
+    '''
+    self.__try_collect_sample = try_collect_sample
 
-  def update(self, dt):
+  def set_flip_rock(self, try_collect_sample):
     '''
-    This function should take a step in updating the navigation routine.
+    Set a flag indicating that we should attempt to flip a rock.
     '''
-    if self.__first_update:
-      self.on_start(dt)
-      self.__first_update = False
-
-    self.on_update(dt)
-
-  def navigator(self):
+    self.__try_flip_rock = try_collect_sample
+    
+  def set_drop_sample(self, try_collect_sample):
     '''
-    Get the navigation context that is executing this routine.
+    Set a flag indicating that we should attempt to drop a sample.
     '''
-    return self.__navigator
-
-  def get_type(self):
-    '''
-    Get the navigation routine type.
-    '''
-    return RoutineType.NONE
-
-  def get_control_parameters(self):
-    '''
-    Get the current contol parameters to apply for this navigation routine.
-    '''
-    raise Exception("Not Implemented")
-
-  def is_done(self):
-    '''
-    This function should return True when the navigation
-    routine has been completed.
-    '''
-    raise Exception("Not Implemented")
-
-  def on_start(self):
-    pass
-
-  def on_update(self, dt):
-    pass
+    self.__try_drop_sample = try_collect_sample

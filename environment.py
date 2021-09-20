@@ -1,17 +1,17 @@
 
 from sys import float_info
-from typing import get_args
-from enum import *
-
+# from typing import get_args
+from enum     import *
 from geometry import *
 
+import env_params
 import math
 
 def weighted_average(a, b, a_w, b_w):
   return (a * a_w + b * b_w) / (a_w + b_w)
 
 class Entity:
-  def __init__(self, entity_type, position, angle, confidence, body):
+  def __init__(self, entity_type, position, angle, confidence, body:Body):
     self.__entity_type = entity_type
     self.__position    = position
     self.__angle       = angle
@@ -23,12 +23,18 @@ class Entity:
     Update the entities position and angle using a weighted average of the current confidence,
     and the new confidence.
     '''
+    prev_pos = self.__position
+    prev_angle = self.__angle
     self.__position   = weighted_average(self.position(), new_pos, self.confidence(), new_confidence)
-    self.__position   = weighted_average(self.angle(), new_angle, self.confidence(), new_confidence)
+    self.__angle      = weighted_average(self.angle(), new_angle, self.confidence(), new_confidence)
     self.__confidence = (new_confidence + self.confidence()) * 0.5
+    # print('({}, {}), {} -> ({}, {}), {}'.format(prev_pos.x, prev_pos.y, prev_angle, self.__position.x, self.__position.y, self.__angle))
 
   def set_position(self, new_pos):
     self.__position = new_pos
+
+  def set_angle(self, new_angle):
+    self.__angle = new_angle
 
   def body(self):
     return self.__body
@@ -39,6 +45,9 @@ class Entity:
   def position(self):
     return self.__position
 
+  def direction(self):
+    return VectorPolar(1, self.__angle).to_cartesian()
+
   def angle(self):
     return self.__angle
 
@@ -48,6 +57,16 @@ class Entity:
     position/angle.
     '''
     return self.__confidence
+
+  def intersects(self, other):
+    my_transformed_body    = self.__body.transformed(self.__position, self.__angle)
+    other_transformed_body = other.__body.transformed(other.__position, other.__angle)
+    return intersect(my_transformed_body, other_transformed_body)
+
+  def intersects_inflated(self, other):
+    my_transformed_body    = self.__body.scale(2 * (1 - self.confidence())).transformed(self.__position, self.__angle)
+    other_transformed_body = other.__body.scale(2 * (1 - other.confidence())).transformed(other.__position, other.__angle)
+    return intersect(my_transformed_body, other_transformed_body)
 
   def extents(self):
     '''
@@ -82,18 +101,38 @@ class Environment:
     Returns True if an entity was successfully updated. 
     Returns False if no entitiy was updated.
     '''
+    new_entity = Entity(entity_type, position, angle, confidence, Circle(Vector(0, 0), env_params.entity_info[entity_type].size() / 2, 0))
+    existing   = self.find_first_colliding(new_entity, entity_type, True)
+    if existing == None:
+      return None
+
+    print('Updating Entity ({}, {})'.format(position.x, position.y))
+    existing.update_position(position, angle, confidence)
+    return existing
+
+  def find_first_colliding(self, entity, entity_type = None, inflated = False):
+    for other in self.get_group(entity_type):
+      if entity is not other:
+        if inflated:
+          if entity.intersects(other):
+            return other
+        else:
+          if entity.intersects_inflated(other):
+            return other
     return None
 
   def add_entity(self, entity_type, position, angle, confidence):
     '''
     Add a new entity to the map.
     '''
-    new_entity = Entity(entity_type, position, angle, confidence)
-    group = self.get_group(entity_type)
+    body       = Circle(Vector(0, 0), env_params.entity_info[entity_type].size() / 2)
+    new_entity = Entity(entity_type, position, angle, confidence, body)
+    return self.add_entity_instance(new_entity)
 
+  def add_entity_instance(self, new_entity):
+    group = self.get_group(new_entity.type())
     group.append(new_entity)
     self.entities.append(new_entity)
-
     return new_entity
 
   def add_or_update_entity(self, entity_type, position, angle, confidence):
@@ -103,6 +142,7 @@ class Environment:
     '''
     new_entity = self.update_entity(entity_type, position, angle, confidence)
     if new_entity == None:
+      print('Adding Entity ({}, {})'.format(position.x, position.y))
       new_entity = self.add_entity(entity_type, position, angle, confidence)
     return new_entity
 
@@ -139,6 +179,14 @@ class Environment:
 
     return closest_entity, closest_dist
 
+  def combine_overlapping(self):
+    for group in self.groups.values():
+      for entity in group.copy():
+        self.remove(entity)
+        updated = self.update_entity(entity.type(), entity.position(), entity.angle(), entity.confidence())
+        if updated == None:
+          self.add_entity_instance(entity)
+
   def prune_visible(self, visible_entities, cam_pos, cam_dir, cam_fov):
     '''
     This function will prune invalid entities from the map based on
@@ -149,7 +197,7 @@ class Environment:
     '''
     unit_cam_dir       = cam_dir.unit()
     visible_candidates = []
-    direction_limit = math.cos(cam_fov / 2)
+    direction_limit = math.cos(radians(cam_fov / 2))
 
     # Find potential visible entities
     for entity in self.entities:
@@ -172,6 +220,7 @@ class Environment:
           # entity should be occluded by occluder, so occluder should be
           # visible. Remove occluder from the map.
           self.remove(occluder)
+          print('Pruned: ' + str(occluder))
 
     # Check for potentially visible entities that should not be occluded the 'visible' entities
     # They need to be removed
@@ -191,6 +240,7 @@ class Environment:
 
       if not is_occluded:
         self.remove(entity)
+        print('Pruned: ' + str(entity))
 
   def remove(self, entity:Entity):
     '''
@@ -205,3 +255,9 @@ class Environment:
       return True
     except:
       return False
+
+  def __contains__(self, entity):
+    if not isinstance(entity, Entity):
+      return False
+    group = self.get_group(entity.type())
+    return entity in group

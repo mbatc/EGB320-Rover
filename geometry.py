@@ -114,6 +114,15 @@ class Circle(Body):
   def rad_sqr(self):
     return self.__radius * self.__radius
 
+  def center(self):
+    return self.__position
+
+  def min(self):
+    return self.__position - Vector(self.__radius, self.__radius)
+
+  def max(self):
+    return self.__position + Vector(self.__radius, self.__radius)
+
   def closest_point(self, point:Vector):
     to_point = point - self.position
     len_sqr = vec2_mag_sqr(to_point)
@@ -206,21 +215,21 @@ def intersect(a, b):
 
 @dispatch(Circle, Line)
 def intersect(a, b):
-  f = b.center() - a.start()
-  r = b.radius()
-  d = a.end() - a.start()
+  f = a.center() - b.start()
+  r = a.radius()
+  d = b.end() - b.start()
 
-  a = vec2_dot(d, d)
-  b = 2 * vec2_dot(f, d)
+  b = vec2_dot(d, d)
+  a = 2 * vec2_dot(f, d)
   c = vec2_dot(f, f) - r * r
 
-  discriminant = b * b - 4 * a * c
+  discriminant = a * a - 4 * b * c
   if discriminant < 0:
     return False
 
   discriminant = discriminant
-  t1 = -(b + discriminant) / (2 * a)
-  t2 = -(b - discriminant) / (2 * a)
+  t1 = -(a + discriminant) / (2 * b)
+  t2 = -(a - discriminant) / (2 * b)
 
   if t1 >= 0 and t1 <= 1:
     return True

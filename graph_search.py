@@ -79,7 +79,9 @@ class GraphSearch:
 
     if self.__frontier.empty():
       raise Exception("The goal not could not be found")
-    cost, node = self.__frontier.get()
+    item = self.__frontier.get()
+    cost = item.priority
+    node = item.item
 
     # Check if this is the best node we have found
     if cost < self.__best_cost:

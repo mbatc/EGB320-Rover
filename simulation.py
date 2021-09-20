@@ -1,8 +1,12 @@
 # Import navigation code
+from env_params import EntityType
 from nav_viz    import NavViz
-from Navigation import Navigator
+from navigation import Navigator
+from navigation import DetectedObject
+from navigation import RoverPose
 from geometry   import *
-import traceback
+
+import env_params
 
 from roverbot_lib import *
 
@@ -11,56 +15,58 @@ sceneParameters = SceneParameters()
 robotParameters = RobotParameters()
 robotParameters.driveType = 'differential'
 
+def to_detected_objects(angle_offset, object_type, object_list):
+  if object_list == None:
+    return []
+
+  detected_objects = []
+  if len(object_list) > 0:
+    if isinstance(object_list[0], list):
+      for o in object_list:
+        detected_objects.append(DetectedObject(object_type, o[0] * env_params.meter_scale, angle_offset + o[1], 0))
+    else:
+      detected_objects.append(DetectedObject(object_type, object_list[0] * env_params.meter_scale, angle_offset + object_list[1], 1))
+
+  return detected_objects
+
 if __name__ == '__main__':
   # try:
     roverBotSim = VREP_RoverRobot('127.0.0.1', robotParameters, sceneParameters)
     roverBotSim.StartSimulator()
 
-    nav_viz = NavViz()
-    nav = Navigator()
+    # nav_viz = NavViz()
+    nav        = Navigator(roverBotSim)
+    rover_pose = RoverPose(Vector(0, 0), 0)
 
-    nav.on_target_reached('lander', roverBotSim.DropSample)
-    nav.on_target_reached('sample', roverBotSim.CollectSample)
-    nav.on_target_reached('rock',   roverBotSim.CollectSample)
-    # nav.environment.add('lander', Circle(Vector(0,0), 0.4))
+    roverBotSim.UpdateObjectPositions()
+    roverBotSim.SetTargetVelocities(0, 0)
+    roverBotSim.UpdateObjectPositions()
 
     while True:
-      nav_viz.update()
+      # nav_viz.update()
       # roverBotSim.SetTargetVelocities(0.1, 10)
-      robotPose, _, _, _ = roverBotSim.UpdateObjectPositions()
+      sim_rover_pos, _, _, _ = roverBotSim.UpdateObjectPositions()
 
-      if robotPose == None:
+      if sim_rover_pos == None:
         continue
 
-      # For now, explicitly set the robots location in the world
-      nav.set_rover(Vector(robotPose[0], robotPose[1]), robotPose[5])
+      rover_pose.set_position(Vector(sim_rover_pos[0] * env_params.meter_scale, sim_rover_pos[1] * env_params.meter_scale))
+      rover_pose.set_angle(sim_rover_pos[5])
 
       sample, lander, obstacle, rock = roverBotSim.GetDetectedObjects()
-      if (rock     != None): nav.record_object_list('rock',     rock)
-      if (sample   != None): nav.record_object_list('sample',   sample)
-      if (obstacle != None): nav.record_object_list('obstacle', obstacle)
-      if (lander   != None): nav.record_object('lander', lander[0], lander[1])
+      visible_objects = []
+      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.ROCK,     rock)
+      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.SAMPLE,   sample)
+      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.OBSTACLE, obstacle)
+      visible_objects = visible_objects + to_detected_objects(rover_pose.get_angle(), EntityType.LANDER,   lander)
 
-      if nav.target == None:
-        if roverBotSim.SampleCollected():
-          if nav.pick_target('lander'):
-            print('Nav To [lander] ' + str(nav.target.body.position))
-        else:
-          for target_type in [ 'sample', 'rock' ]:
-            if nav.pick_target(target_type):
-              print('Nav To [' + target_type + '] ' + str(nav.target.body.position))
-              break
+      nav.update(rover_pose, visible_objects)
+      # nav_viz.draw(nav.environment, nav.current_path)
 
-          if nav.target == None:
-            nav.explore()
-            print('Exploring To ' + str(nav.target.body.position))
+      speed, ori_cor = nav.get_control_parameters()
+      # print('(Speed, Ori): ' + str((speed, ori_cor)))
 
-      nav_viz.draw(nav.environment, nav.current_path)
-      nav.update_path()
-
-      print(robotPose[5], str(nav.get_direction()), str(nav.get_dir_correction()))
-
-      roverBotSim.SetTargetVelocities(0.005 + nav.get_speed() * 0.02, nav.get_dir_correction())
+      roverBotSim.SetTargetVelocities(speed * 0.02, ori_cor)
 
   # except Exception as e:
   #   traceback.print_exc()

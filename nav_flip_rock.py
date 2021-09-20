@@ -1,5 +1,5 @@
-from navigation import *
 from graph_search import *
+from nav_routine  import *
 
 class FlipRoutine(Routine):
   def __init__(self, navigator):
@@ -8,5 +8,5 @@ class FlipRoutine(Routine):
   def on_start(self):
     self.navigator
 
-  def on_update(self):
+  def on_update(self, dt):
     pass

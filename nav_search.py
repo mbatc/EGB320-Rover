@@ -1,6 +1,11 @@
 from env_params import EntityType
-from navigation import *
+
 from graph_search import *
+from geometry     import *
+from nav_routine  import *
+
+import math
+import random
 
 step_directions = [
   Vector(0, 1),
@@ -21,11 +26,10 @@ class NavNode:
     self.__position   = position
     self.__prev_node  = prev_node
     self.__target_pos = target_pos
-    if prev_node != None:
+    if prev_node is not None:
       self.__path_len = prev_node.__path_len + 1
     else:
       self.__path_len = 1
-
 
   def cost(self):
     '''
@@ -60,7 +64,7 @@ class NavNode:
     '''
     Neighbours are all 
     '''
-    return [ NavNode(self, self.__position + direction * step_size, self.__env) for direction in step_directions ]
+    return [ NavNode(self, self.__position + direction * step_size, self.__env, self.__target_pos) for direction in step_directions ]
     
   def get_position(self):
     return self.__position
@@ -75,30 +79,37 @@ class NavNode:
     '''
     The derived class is required to implement a Comparison function.
     '''
+    if other is None:
+      return False
+
     return self.__position == other.__position and self.__path_len == other.__path_len
 
 class SearchRoutine(Routine):
-  def __init__(self, navigator:Navigator):
+  def __init__(self, navigator):
     super().__init__(navigator)
     self.target = None
     self.env    = navigator.environment()
     self.failed = False
     self.path   = []
 
-  def on_update(self):
+  def on_update(self, dt):
     rover       = self.navigator().get_rover_entity()
     start_node  = NavNode(None, rover.position(), self.env, self.target)
     path_finder = GraphSearch()
     path_finder.expand_frontier(start_node)
     goal = None
-    try:
-      while goal == None:
-        goal = path_finder.search()
-    except:
+    # try:
+    while goal is None:
+      goal = path_finder.search()
+    # except Exception as e:
       # Path find failed
-      self.failed = True
+      # print('Navigation Failed: '+ str(e))
+      # self.failed = True
 
-    self.path = [ node.get_position() for node in goal.path() ]
+    if goal is not None:
+      self.path = [ node.get_position() for node in goal.path() ]
+    else:
+      self.path = []
 
   def get_control_parameters(self):
     path_len = len(self.path)
@@ -111,12 +122,7 @@ class SearchRoutine(Routine):
     else:
       target_dir = self.path[1] - self.path[0]
 
-    rover          = self.navigator().get_rover_entity()
-    cur_dir        = VectorPolar(1, rover.angle()).to_cartesian().unit()
-    target_dir     = target_dir.unit()
-    ori_correction = vec2_cross(cur_dir, target_dir)
-
-    return 1, ori_correction
+    return direction_to_control_param(target_dir, self.navigator().get_rover_entity())
 
   def is_done(self):
     '''
@@ -124,10 +130,27 @@ class SearchRoutine(Routine):
     routine has been completed.
     '''
     rover = self.navigator().get_rover_entity()
-    return abs(self.target - rover.position()) < 3
+    return abs(self.target - rover.position()) < 5
 
-class LanderSearchRoutine:
-  def __init__(self, navigator:Navigator):
+class ExploreRoutine(SearchRoutine):
+  def __init__(self, navigator):
+    super().__init__(navigator)
+
+  def on_start(self):
+    rover_pos   = self.navigator().get_rover_entity().position()
+    angle       = random.random() * 2 - 1
+    distance    = random.random() * 20
+    target_pos  = rover_pos + VectorPolar(distance, angle * math.pi).to_cartesian()
+    self.target = target_pos
+
+  def get_type(self):
+    '''
+    Get the navigation routine type.
+    '''
+    return RoutineType.EXPLORE
+
+class LanderSearchRoutine(SearchRoutine):
+  def __init__(self, navigator):
     super().__init__(navigator)
 
   def on_start(self):
@@ -141,14 +164,26 @@ class LanderSearchRoutine:
     '''
     return RoutineType.SEARCH_LANDER
 
-class SampleSearchRoutine:
-  def __init__(self, navigator:Navigator):
+class SampleSearchRoutine(SearchRoutine):
+  def __init__(self, navigator):
     super().__init__(navigator)
+    self.sample = None
 
   def on_start(self):
-    rover_pos   = self.navigator().get_rover_entity().position()
-    sample      = self.env.find_closest(EntityType.SAMPLE, rover_pos)
-    self.target = sample.position()
+    rover_pos         = self.navigator().get_rover_entity().position()
+    self.sample, dist = self.env.find_closest(EntityType.SAMPLE, rover_pos)
+    self.target       = self.sample.position()
+
+  def on_update(self, dt):
+    if self.sample not in self.env:
+      self.sample = None
+
+    if self.sample is not None:
+      self.target  = self.sample.position()
+      super().on_update(dt)
+
+  def is_done(self):
+    return self.sample is None or super().is_done()
 
   def get_type(self):
     '''
@@ -157,14 +192,23 @@ class SampleSearchRoutine:
     return RoutineType.SEARCH_SAMPLE
 
 
-class RockSearchRoutine:
-  def __init__(self, navigator:Navigator):
+class RockSearchRoutine(SearchRoutine):
+  def __init__(self, navigator):
     super().__init__(navigator)
+    self.rock = None
 
   def on_start(self):
-    rover_pos   = self.navigator().get_rover_entity().position()
-    rock        = self.env.find_closest(EntityType.ROCK, rover_pos)
-    self.target = rock.position()
+    rover_pos       = self.navigator().get_rover_entity().position()
+    self.rock, dist = self.env.find_closest(EntityType.ROCK, rover_pos)
+    self.target     = self.rock.position()
+
+  def on_update(self, dt):
+    if self.rock not in self.env:
+      self.rock = None
+
+    if self.rock is not None:
+      self.rock  = self.rock.position()
+      super().on_update(dt)
 
   def get_type(self):
     '''
