@@ -44,12 +44,12 @@ class DropRoutine(Routine):
 
   def on_start(self):
     # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.SAMPLE, self.__rover.position())
+    self.__target, _ = self.navigator().environment().find_closest(EntityType.LANDER, self.__rover.position())
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
 
-    if abs(self.__to_target) < 3:
+    if abs(self.__to_target) < 10:
       self.__sample_collected = True
       self.navigator().set_drop_sample(True)
 
@@ -76,7 +76,7 @@ class FlipRoutine(Routine):
 
   def on_start(self):
     # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.SAMPLE, self.__rover.position())
+    self.__target, _ = self.navigator().environment().find_closest(EntityType.ROCK, self.__rover.position())
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()

@@ -122,7 +122,8 @@ class SearchRoutine(Routine):
     self.env    = navigator.environment()
     self.failed = False
     self.path   = []
-    self.goal_dist = 0
+    self.goal_dist   = 5
+    self.finish_dist = 5
 
   def calculate_cost(self, node:NavNode):
     return node.path_length() + vec2_mag_sqr(self.target - node.get_position())
@@ -173,7 +174,7 @@ class SearchRoutine(Routine):
     routine has been completed.
     '''
     rover = self.navigator().get_rover_entity()
-    return abs(self.target - rover.position()) < 5
+    return abs(self.target - rover.position()) < self.finish_dist
 
 class ExploreRoutine(SearchRoutine):
   def __init__(self, navigator):
@@ -186,16 +187,13 @@ class ExploreRoutine(SearchRoutine):
     return super().is_goal(node)
 
   def on_start(self):
-    rover_pos   = self.navigator().get_rover_entity().position()
     self.target = None
-
     rover_copy = deepcopy(self.navigator().get_rover_entity())
-    
-    while self.target is None:
+    while self.target is None:    
       angle       = random.random() * 2 - 1
-      distance    = random.random() * 70
-      target_pos  = rover_pos + VectorPolar(distance, angle * math.pi).to_cartesian()
-
+      distance    = random.random() * 100
+      target_pos  = self.navigator().rover_start_position() + VectorPolar(distance, angle * math.pi).to_cartesian()
+  
       if abs(target_pos.x) > 80 or abs(target_pos.y) > 80:
         continue
       rover_copy.set_position(target_pos)
@@ -203,6 +201,7 @@ class ExploreRoutine(SearchRoutine):
         self.target = target_pos
 
     self.goal_dist = entity_info[EntityType.ROVER].size() / 2
+    self.finish_dist = self.goal_dist
 
   def get_type(self):
     '''
@@ -239,6 +238,7 @@ class LanderSearchRoutine(SearchRoutine):
     lander, dist   = self.env.find_closest(EntityType.LANDER, rover_pos)
     self.target    = lander.position() if lander is not None else self.navigator().rover_start_position()
     self.goal_dist = entity_info[EntityType.ROVER].size()
+    self.finish_dist = self.goal_dist
 
   def get_type(self):
     '''
@@ -267,6 +267,7 @@ class SampleSearchRoutine(SearchRoutine):
     self.sample, dist = self.env.find_closest(EntityType.SAMPLE, rover_pos)
     self.target       = self.sample.position()
     self.goal_dist    = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.SAMPLE].size()) / 2
+    self.finish_dist  = self.goal_dist
 
   def on_update(self, dt):
     if self.sample not in self.env:
@@ -309,12 +310,15 @@ class RockSearchRoutine(SearchRoutine):
     self.goal_dist = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()) / 2
 
   def on_update(self, dt):
-    if self.rock not in self.env:
-      self.rock = None
+    # if self.rock not in self.env:
+    #   self.rock = None
 
     if self.rock is not None:
       self.rock  = self.rock.position()
       super().on_update(dt)
+
+  def is_done(self):
+    return self.rock is None or super().is_done()
 
   def get_type(self):
     '''

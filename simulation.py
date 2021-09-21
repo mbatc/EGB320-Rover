@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
       rover_pose.set_position(Vector(sim_rover_pos[0] * env_params.meter_scale, sim_rover_pos[1] * env_params.meter_scale))
       rover_pose.set_angle(sim_rover_pos[5])
-
+ 
       sample, lander, obstacle, rock = roverBotSim.GetDetectedObjects()
       visible_objects = []
       visible_objects = visible_objects + to_detected_objects(EntityType.ROCK,     rock)
@@ -59,9 +59,9 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
 
-      # start = time.time()
+      start = time.time()
       nav.update(rover_pose, visible_objects)
-      # print('Update Time: {}'.format(time.time() - start))
+      print('Update Time: {}'.format(time.time() - start))
 
       nav_viz.draw(nav.environment(), nav.current_path())
 
