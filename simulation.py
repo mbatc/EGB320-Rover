@@ -6,6 +6,7 @@ from navigation import DetectedObject
 from navigation import RoverPose
 from geometry   import *
 
+import timeit
 import env_params
 
 from roverbot_lib import *
@@ -58,9 +59,12 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
 
+      # start = time.time()
       nav.update(rover_pose, visible_objects)
+      # print('Update Time: {}'.format(time.time() - start))
+
       nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
 
-      roverBotSim.SetTargetVelocities(speed * 0.02, ori_cor)
+      roverBotSim.SetTargetVelocities(speed * 0.05, ori_cor)

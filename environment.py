@@ -70,7 +70,8 @@ class Entity:
     return intersect(my_transformed_body, other_transformed_body)
 
   def inflated_body(self):
-    return self.__body.scale(1 + (1 - self.confidence())).transformed(self.__position, self.__angle)
+    inflation = env_params.entity_info[self.type()].inflation()
+    return self.__body.scale(1 + inflation * (1 - self.confidence())).transformed(self.__position, self.__angle)
 
   def transformed_body(self):
     return self.__body.transformed(self.__position, self.__angle)
@@ -124,6 +125,23 @@ class Environment:
 
   def get_rover(self):
     return self.__rover
+
+  def find_colliding(self, entity, entity_type = None, inflated = False):
+    found = []
+    if isinstance(entity_type, list):
+      for t in entity_type:
+        found = found + self.find_colliding(entity, t, inflated)
+    else:
+      for other in self.get_group(entity_type):
+        if entity is not other:
+          if inflated:
+            if entity.intersects_inflated(other):
+              found.append(other)
+          else:
+            if entity.intersects(other):
+              found.append(other)
+    return found
+
 
   def find_first_colliding(self, entity, entity_type = None, inflated = False):
     if isinstance(entity_type, list):

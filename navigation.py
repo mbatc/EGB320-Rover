@@ -88,8 +88,10 @@ class Navigator:
     self.__routine_end_time   = 0
     self.__last_routine_type  = RoutineType.NONE
     self.__rover              = self.__environment.add_entity(EntityType.ROVER, Vector(0, 0), 0, 1)
+    self.__rover              = self.__environment.add_entity(EntityType.LANDER, Vector(0, 0), 0, 1)
     self.__last_update        = time.time()
     self.__dt                 = 0
+    self.__rover_start_pos    = Vector(0, 0)
     self.__attached = []
     self.__sim = sim
 
@@ -98,6 +100,9 @@ class Navigator:
 
   def attach_sample(self, entity):
     self.__attached.append(entity)
+
+  def rover_start_position(self):
+    return self.__rover_start_pos
 
   def update(self, rover_pose, visible_objects):
     update_time = time.time()
@@ -169,6 +174,7 @@ class Navigator:
       if self.__has_sample:
         self.__attached.append(self.__sample_to_collect)
       self.__sample_to_collect = None
+      return True
     elif self.__try_drop_sample:
       self.__sim.DropSample()
       self.__has_sample = False
@@ -176,8 +182,10 @@ class Navigator:
       for entity in self.__attached:
         self.__environment.remove(entity)
       self.__attached = []
+      return True
     elif self.__try_flip_rock:
       self.__try_flip_rock = False
+      return True
 
     return False
 
