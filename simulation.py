@@ -44,6 +44,7 @@ if __name__ == '__main__':
 
     while True:
       # nav_viz.update()
+      sim_update_start = time.time()
       sim_rover_pos, _, _, _ = roverBotSim.UpdateObjectPositions()
 
       if sim_rover_pos == None:
@@ -58,13 +59,16 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.SAMPLE,   sample)
       visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
-
-      start = time.time()
+      
+      nav_start_time = time.time()
       nav.update(rover_pose, visible_objects)
-      print('Update Time: {}'.format(time.time() - start))
+      nav_update_time = time.time() - nav_start_time
+      print('Nav Update Time: {}'.format(nav_update_time))
 
       # nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
 
       roverBotSim.SetTargetVelocities(speed * 0.05, ori_cor)
+
+      print('Sim update time: {}'.format(time.time() - sim_update_start - nav_update_time))
