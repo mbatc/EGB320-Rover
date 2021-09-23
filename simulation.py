@@ -3,18 +3,45 @@ from env_params import EntityType
 # from nav_viz    import NavViz
 from navigation import Navigator
 from navigation import DetectedObject
-from navigation import RoverPose
 from geometry   import *
 
-import timeit
 import env_params
 
 from roverbot_lib import *
+
+class RoverPose:
+  def __init__(self, pos, angle):
+    self.__position = pos
+    self.__angle    = angle
+    self.__last_position = pos
+
+  def set_position(self, position):
+    self.__last_position = self.__position
+    self.__position      = position
+
+  def set_angle(self, angle):
+    self.__angle = angle
+
+  def apply_velocity(self, velocity, dt):
+    self.__position = self.__position + velocity * dt
+
+  def apply_angular_velocity(self, velocity, dt):
+    self.__angle = self.__angle + velocity * dt
+
+  def get_position(self):
+    return self.__position
+
+  def get_angle(self):
+    return self.__angle
+
+  def delta_position(self):
+    return self.__position - self.__last_position
 
 sceneParameters = SceneParameters()
 
 robotParameters = RobotParameters()
 robotParameters.driveType = 'differential'
+robotParameters.collectorQuality
 
 def to_detected_objects(object_type, object_list):
   if object_list == None:
@@ -59,7 +86,7 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.SAMPLE,   sample)
       visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
-      
+
       nav_start_time = time.time()
       nav.update(rover_pose, visible_objects)
       nav_update_time = time.time() - nav_start_time
@@ -68,7 +95,7 @@ if __name__ == '__main__':
       # nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
-
+      # print('Speed: {}, Ori: {}'.format(speed, ori_cor))
       roverBotSim.SetTargetVelocities(speed * 0.05, ori_cor)
 
       print('Sim update time: {}'.format(time.time() - sim_update_start - nav_update_time))

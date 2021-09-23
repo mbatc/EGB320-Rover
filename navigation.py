@@ -7,29 +7,6 @@ from env_params    import *
 from nav_scs       import *
 from nav_search    import *
 
-class RoverPose:
-  def __init__(self, pos, angle):
-    self.__position = pos
-    self.__angle    = angle
-
-  def set_position(self, position):
-    self.__position = position
-
-  def set_angle(self, angle):
-    self.__angle = angle
-
-  def apply_velocity(self, velocity, dt):
-    self.__position = self.__position + velocity * dt
-
-  def apply_angular_velocity(self, velocity, dt):
-    self.__angle = self.__angle + velocity * dt
-
-  def get_position(self):
-    return self.__position
-
-  def get_angle(self):
-    return self.__angle
-
 class DetectedObject:
   def __init__(self, type, distance, heading, angle):
     self.__type          = type
@@ -90,13 +67,28 @@ class Navigator:
     self.__rover              = self.__environment.add_entity(EntityType.ROVER, Vector(0, 0), 0, 1)
     self.__lander             = self.__environment.add_entity(EntityType.LANDER, Vector(0, 0), 0, 1)
     self.__last_update        = time.time()
+    self.__target_sample      = None
+    self.__target_rock      = None
     self.__dt                 = 0
     self.__rover_start_pos    = Vector(0, 0)
+    self.__rover_delta_pos    = Vector(0, 0)
     self.__attached = []
     self.__sim = sim
 
   def has_sample(self):
     return self.__has_sample
+
+  def get_target_sample(self):
+    return self.__target_sample
+
+  def set_target_sample(self, sample):
+    self.__target_sample = sample
+
+  def get_target_rock(self):
+    return self.__target_rock
+
+  def set_target_rock(self, sample):
+    self.__target_rock = sample
 
   def attach_sample(self, entity):
     self.__attached.append(entity)
@@ -104,11 +96,17 @@ class Navigator:
   def rover_start_position(self):
     return self.__rover_start_pos
 
-  def update(self, rover_pose, visible_objects):
+  def get_rover_delta_position(self):
+    return self.__rover_delta_pos
+
+  def update(self, rover_delta_pos, rover_angle, visible_objects):
     update_time = time.time()
     self.__dt   = update_time - self.__last_update
-    self.__rover.set_position(rover_pose.get_position())
-    self.__rover.set_angle(rover_pose.get_angle())
+    self.__rover_delta_pos = rover_delta_pos
+    self.__rover.set_position(self.__rover_delta_pos)
+    self.__rover.set_angle   (rover_angle)
+    self.__rover_start_pos -= self.__rover_delta_pos
+    self.environment().bring_to_center(self.__rover)
 
     for entity in self.__attached:
       entity.set_position(self.__rover.position())
@@ -128,11 +126,21 @@ class Navigator:
     # Update the map of the environment
     visible_entities = []
     for object in visible_objects:
-      visible_entities.append(self.environment().add_or_update_entity(
-        object.type(),
-        object.calculate_position(self.__rover),
-        object.calculate_angle(self.__rover),
-        object.get_confidence()))
+      if object.distance() > 5:
+        visible_entities.append(self.environment().add_or_update_entity(
+          object.type(),
+          object.calculate_position(self.__rover),
+          object.calculate_angle(self.__rover),
+          object.get_confidence()))
+
+    sample_to_remove = []
+    # If any samples are intersecting with the lander, remove them
+    # We probably already collected it
+    for sample in self.environment().get_group(EntityType.SAMPLE):
+      if self.environment().find_first_colliding(sample, EntityType.LANDER) is not None:
+        sample_to_remove.append(sample)
+    for sample in sample_to_remove:
+      self.environment().remove(sample)
 
     # Combine overlapping entities
     self.environment().combine_overlapping()
@@ -141,13 +149,17 @@ class Navigator:
     rover_pos = self.__rover.position()
     rover_dir = self.__rover.direction()
     rover_fov = 60
-    # self.environment().prune_visible(
-    #   visible_entities,
-    #   rover_pos,
-    #   rover_dir,
-    #   rover_fov,
-    #   10
-    # )
+    for entity_type in [EntityType.SAMPLE, EntityType.ROCK, EntityType.OBSTACLE]:
+      self.environment().prune_visible(
+        self.__dt,
+        visible_entities,
+        rover_pos,
+        rover_dir,
+        rover_fov,
+        15,
+        40,
+        entity_type
+      )
 
   def update_navigation_routine(self, dt):
     '''
@@ -170,17 +182,14 @@ class Navigator:
     Try perform an action using the sample collection system.
     '''
     if self.__sample_to_collect is not None:
-      self.__has_sample = self.__sim.CollectSample()
       if self.__has_sample:
-        self.__attached.append(self.__sample_to_collect)
+        self.__environment.remove(self.__sample_to_collect)
       self.__sample_to_collect = None
       return True
     elif self.__try_drop_sample:
       self.__sim.DropSample()
       self.__has_sample = False
       self.__try_drop_sample = False
-      for entity in self.__attached:
-        self.__environment.remove(entity)
       self.__attached = []
       return True
     elif self.__try_flip_rock:
@@ -201,9 +210,9 @@ class Navigator:
       else:
         return RoutineType.SEARCH_LANDER
     else:
-      if last_routine == RoutineType.SEARCH_SAMPLE:
+      if last_routine == RoutineType.SEARCH_SAMPLE and self.get_target_sample() != None:
         return RoutineType.COLLECT_SAMPLE
-      elif last_routine == RoutineType.SEARCH_SAMPLE:
+      elif last_routine == RoutineType.SEARCH_ROCK and self.get_target_rock() != None:
         return RoutineType.FLIP_ROCK
 
       if self.environment().has_entities(EntityType.SAMPLE):
@@ -220,6 +229,7 @@ class Navigator:
     if self.__current_routine == None:
       self.__last_routine_type = RoutineType.NONE
     else:
+      self.__current_routine.on_complete()
       self.__last_routine_type = self.__current_routine.get_type()
       print('Finished ' + str(self.__last_routine_type))
     self.__current_routine  = None
@@ -267,11 +277,14 @@ class Navigator:
     else:
       return self.__current_routine.get_control_parameters()
 
-  def set_collect_sample(self, try_collect_sample):
+  def try_collect_sample(self, try_collect_sample):
     '''
     Set a flag indicating that we should attempt to collect a sample.
     '''
-    self.__sample_to_collect = try_collect_sample
+    self.__has_sample        = self.__sim.CollectSample()
+    if self.__has_sample:
+      self.__sample_to_collect = try_collect_sample
+    return self.__has_sample
 
   def set_flip_rock(self, try_collect_sample):
     '''

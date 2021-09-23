@@ -24,12 +24,9 @@ class Entity:
     Update the entities position and angle using a weighted average of the current confidence,
     and the new confidence.
     '''
-    prev_pos = self.__position
-    prev_angle = self.__angle
     self.__position   = weighted_average(self.position(), new_pos, self.confidence(), new_confidence)
     self.__angle      = weighted_average(self.angle(), new_angle, self.confidence(), new_confidence)
     self.__confidence = (new_confidence + self.confidence()) * 0.5
-    # print('({}, {}), {} -> ({}, {}), {}'.format(prev_pos.x, prev_pos.y, prev_angle, self.__position.x, self.__position.y, self.__angle))
 
   def set_position(self, new_pos):
     self.__position = new_pos
@@ -151,6 +148,8 @@ class Environment:
           return other
     else:
       for other in self.get_group(entity_type):
+        if not env_params.entity_info[other.type()].collidable():
+          continue
         if entity is not other:
           if inflated:
             if entity.intersects_inflated(other):
@@ -230,7 +229,7 @@ class Environment:
         if updated == None:
           self.add_entity_instance(entity)
 
-  def prune_visible(self, visible_entities, cam_pos, cam_dir, cam_fov, min_dist):
+  def prune_visible(self, dt, visible_entities, cam_pos, cam_dir, cam_fov, min_dist, max_dist, entity_type=None):
     '''
     This function will prune invalid entities from the map based on
     the visibility of other entities and the camera properties.
@@ -243,9 +242,11 @@ class Environment:
     direction_limit = math.cos(radians(cam_fov / 2))
 
     min_dist_sqr = min_dist * min_dist
+    max_dist_sqr = max_dist * max_dist
 
+    to_remove    = set()
     # Find potential visible entities
-    for entity in self.entities:
+    for entity in self.get_group(entity_type):
       to_entity  = entity.position() - cam_pos
       entity_dir = to_entity.unit()
 
@@ -269,7 +270,7 @@ class Environment:
         if is_in_front and intersect(to_entity, occluder.body()):
           # entity should be occluded by occluder, so occluder should be
           # visible. Remove occluder from the map.
-          occluder.missing_time = occluder.missing_time + 1
+          to_remove.add(occluder)
 
     # Check for potentially visible entities that should not be occluded the 'visible' entities
     # They need to be removed
@@ -288,11 +289,15 @@ class Environment:
           break
 
       if not is_occluded:
-        self.remove(entity)
-        entity.missing_time = entity.missing_time + 1
-    
-    for entity in self.entities.copy():
-      if entity.missing_time > 5:
+        to_remove.add(entity)
+
+    for entity in to_remove:
+      entity_dist_sqr  = vec2_mag_sqr(entity.position() - cam_pos)
+      if entity_dist_sqr > max_dist_sqr or entity_dist_sqr < min_dist_sqr:
+        continue
+
+      entity.missing_time = entity.missing_time + dt
+      if entity.missing_time > 2:
         self.remove(entity)
         print('Pruned: ' + str(entity))
 

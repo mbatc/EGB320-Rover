@@ -6,27 +6,27 @@ from vector_2d   import Vector
 class CollectRoutine(Routine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.__target    = None
+    self.__target    = self.navigator().get_target_sample()
     self.__rover     = self.navigator().get_rover_entity()
     self.__to_target = Vector()
     self.__sample_collected = False
-
-  def on_start(self):
-    # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.SAMPLE, self.__rover.position())
+    self.__direction_valid  = False
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
-
-    if abs(self.__to_target) < entity_info[EntityType.ROVER].size() / 4:
-      self.__sample_collected = True
-      self.navigator().set_collect_sample(self.__target)
+    self.__direction_valid = True
+    if abs(self.__to_target) < 5:
+      self.__sample_collected = self.navigator().try_collect_sample(self.__target)
 
   def is_done(self):
     return self.__target is None or self.__sample_collected
 
   def get_control_parameters(self):
-    return direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+    if not self.__direction_valid or self.__sample_collected:
+      return 0, 0
+    else:
+      speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+      return speed * 0.2, ori
 
   def get_type(self):
     '''
@@ -40,24 +40,29 @@ class DropRoutine(Routine):
     self.__target    = None
     self.__rover     = self.navigator().get_rover_entity()
     self.__to_target = Vector()
-    self.__sample_collected = False
+    self.__sample_dropped = False
+    self.__direction_valid = False
 
   def on_start(self):
     # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.SAMPLE, self.__rover.position())
+    self.__target, _ = self.navigator().environment().find_closest(EntityType.LANDER, self.__rover.position())
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
+    self.__direction_valid = True
 
-    if abs(self.__to_target) < 3:
-      self.__sample_collected = True
+    if abs(self.__to_target) < 10:
+      self.__sample_dropped = True
       self.navigator().set_drop_sample(True)
 
   def is_done(self):
-    return self.__sample_collected
+    return self.__sample_dropped
 
   def get_control_parameters(self):
-    return direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+    if not self.__direction_valid or self.__sample_dropped:
+      return 0, 0
+    else:
+      return direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
 
   def get_type(self):
     '''
@@ -69,19 +74,19 @@ class DropRoutine(Routine):
 class FlipRoutine(Routine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.__target    = None
+    self.__target    = self.navigator().get_target_rock()
     self.__rover     = self.navigator().get_rover_entity()
     self.__to_target = Vector()
     self.__sample_collected = False
 
   def on_start(self):
     # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.SAMPLE, self.__rover.position())
+    self.__target, _ = self.navigator().environment().find_closest(EntityType.ROCK, self.__rover.position())
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
 
-    if abs(self.__to_target) < 3:
+    if abs(self.__to_target) < 3.5:
       self.__sample_collected = True
       self.navigator().set_flip_rock(True)
 
