@@ -88,7 +88,7 @@ class Navigator:
     self.__routine_end_time   = 0
     self.__last_routine_type  = RoutineType.NONE
     self.__rover              = self.__environment.add_entity(EntityType.ROVER, Vector(0, 0), 0, 1)
-    self.__rover              = self.__environment.add_entity(EntityType.LANDER, Vector(0, 0), 0, 1)
+    self.__lander             = self.__environment.add_entity(EntityType.LANDER, Vector(0, 0), 0, 1)
     self.__last_update        = time.time()
     self.__dt                 = 0
     self.__rover_start_pos    = Vector(0, 0)

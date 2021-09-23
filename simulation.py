@@ -1,6 +1,6 @@
 # Import navigation code
 from env_params import EntityType
-from nav_viz    import NavViz
+# from nav_viz    import NavViz
 from navigation import Navigator
 from navigation import DetectedObject
 from navigation import RoverPose
@@ -31,10 +31,10 @@ def to_detected_objects(object_type, object_list):
   return detected_objects
 
 if __name__ == '__main__':
-    roverBotSim = VREP_RoverRobot('127.0.0.1', robotParameters, sceneParameters)
+    roverBotSim = VREP_RoverRobot('192.168.43.168', robotParameters, sceneParameters)
     roverBotSim.StartSimulator()
 
-    nav_viz    = NavViz()
+    # nav_viz    = NavViz()
     nav        = Navigator(roverBotSim)
     rover_pose = RoverPose(Vector(0, 0), 0)
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     roverBotSim.UpdateObjectPositions()
 
     while True:
-      nav_viz.update()
+      # nav_viz.update()
       sim_rover_pos, _, _, _ = roverBotSim.UpdateObjectPositions()
 
       if sim_rover_pos == None:
@@ -59,11 +59,11 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
 
-      # start = time.time()
+      start = time.time()
       nav.update(rover_pose, visible_objects)
-      # print('Update Time: {}'.format(time.time() - start))
+      print('Update Time: {}'.format(time.time() - start))
 
-      nav_viz.draw(nav.environment(), nav.current_path())
+      # nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
 
