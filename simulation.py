@@ -3,18 +3,45 @@ from env_params import EntityType
 # from nav_viz    import NavViz
 from navigation import Navigator
 from navigation import DetectedObject
-from navigation import RoverPose
 from geometry   import *
 
-import timeit
 import env_params
 
 from roverbot_lib import *
+
+class RoverPose:
+  def __init__(self, pos, angle):
+    self.__position = pos
+    self.__angle    = angle
+    self.__last_position = pos
+
+  def set_position(self, position):
+    self.__last_position = self.__position
+    self.__position      = position
+
+  def set_angle(self, angle):
+    self.__angle = angle
+
+  def apply_velocity(self, velocity, dt):
+    self.__position = self.__position + velocity * dt
+
+  def apply_angular_velocity(self, velocity, dt):
+    self.__angle = self.__angle + velocity * dt
+
+  def get_position(self):
+    return self.__position
+
+  def get_angle(self):
+    return self.__angle
+
+  def delta_position(self):
+    return self.__position - self.__last_position
 
 sceneParameters = SceneParameters()
 
 robotParameters = RobotParameters()
 robotParameters.driveType = 'differential'
+robotParameters.collectorQuality
 
 def to_detected_objects(object_type, object_list):
   if object_list == None:
@@ -51,7 +78,7 @@ if __name__ == '__main__':
 
       rover_pose.set_position(Vector(sim_rover_pos[0] * env_params.meter_scale, sim_rover_pos[1] * env_params.meter_scale))
       rover_pose.set_angle(sim_rover_pos[5])
-
+ 
       sample, lander, obstacle, rock = roverBotSim.GetDetectedObjects()
       visible_objects = []
       visible_objects = visible_objects + to_detected_objects(EntityType.ROCK,     rock)
@@ -60,11 +87,11 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
 
       start = time.time()
-      nav.update(rover_pose, visible_objects)
+      nav.update(rover_pose.delta_position(), rover_pose.get_angle(), visible_objects)
       print('Update Time: {}'.format(time.time() - start))
 
       # nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
-
+      # print('Speed: {}, Ori: {}'.format(speed, ori_cor))
       roverBotSim.SetTargetVelocities(speed * 0.05, ori_cor)

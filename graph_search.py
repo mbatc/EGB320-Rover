@@ -65,6 +65,9 @@ class GraphSearch:
     self.__best_cost = sys.float_info.max
     self.__goal      = None # The goal that was found
 
+  def get_best(self):
+    return self.__best
+
   def expand_frontier(self, node):
     if node in self.__explored:
       return False

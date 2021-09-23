@@ -20,7 +20,7 @@ step_directions = [
   (-1, 1),
 ]
 
-step_size = 5 # cm
+step_size = 10 # cm
 
 class NavNode:
   def __init__(self, routine, prev_node, position, tile_pos):
@@ -36,7 +36,7 @@ class NavNode:
 
     # A set of all positions in the path.
     # We use this to make sure we don't cross the same position twice in the same path
-    self.__path_pos   = set() if prev_node is None else prev_node.__path_pos
+    self.__path_pos   = set() if prev_node is None else copy(prev_node.__path_pos)
     self.__path_pos.add(tile_pos)
 
     if prev_node is not None:
@@ -118,33 +118,52 @@ class NavNode:
 class SearchRoutine(Routine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.target = None
+    self.target_pos    = None
+    self.target_entity = None
     self.env    = navigator.environment()
     self.failed = False
     self.path   = []
-    self.goal_dist = 0
+    self.goal_dist   = 5
+    self.finish_dist = 5
+    self.prev_length = 100000
+
+  def get_obstacle_types(self):
+    return []
 
   def calculate_cost(self, node:NavNode):
-    return node.path_length() + vec2_mag_sqr(self.target - node.get_position())
+    cost = node.path_length() + vec2_mag_sqr(self.target_pos - node.get_position())
+    rover_copy = deepcopy(self.env.get_rover())
+    rover_copy.set_position(node.get_position())
+    for colliding in self.env.find_colliding(rover_copy, self.get_obstacle_types()):
+      cost = cost * (2 + 100 / max(0.01, vec2_mag_sqr(colliding.position() - rover_copy.position())))
+    return cost
 
   def can_enter(self, node:NavNode):
     return True
 
   def is_goal(self, node):
-    return vec2_mag_sqr(node.get_position() - self.target) <= (self.goal_dist * self.goal_dist)
+    return vec2_mag_sqr(node.get_position() - self.target_pos) <= (self.goal_dist * self.goal_dist)
 
   def on_update(self, dt):
+    if self.target_entity is not None:
+      self.target_pos = self.target_entity.position()
+
     rover       = self.navigator().get_rover_entity()
     start_node  = NavNode(self, None, rover.position(), (0, 0))
     path_finder = GraphSearch()
+    goal        = None
     path_finder.expand_frontier(start_node)
-    goal = None
 
     try:
-      while goal is None:
+      max_itr = 1000
+      while goal is None and max_itr > 0:
         goal = path_finder.search()
+        max_itr = max_itr - 1
     except Exception as e:
       print('Path find Failed: ' + str(e))
+
+    if goal is None:
+      goal = path_finder.get_best()
 
     if goal is not None:
       self.path = [ node.get_position() for node in goal.path() ]
@@ -161,48 +180,39 @@ class SearchRoutine(Routine):
 
     target_dir = None
     if path_len == 1:
-      target_dir = self.target - self.path[0]
+      target_dir = self.target_pos - self.path[0]
     else:
       target_dir = self.path[1] - self.path[0]
 
     return direction_to_control_param(target_dir, self.navigator().get_rover_entity())
 
   def is_done(self):
-    '''
-    This function should return True when the navigation
-    routine has been completed.
-    '''
     rover = self.navigator().get_rover_entity()
-    return abs(self.target - rover.position()) < 5
+    return abs(self.target_pos - rover.position()) < self.finish_dist
 
 class ExploreRoutine(SearchRoutine):
   def __init__(self, navigator):
     super().__init__(navigator)
 
-  def calculate_cost(self, node):
-    return super().calculate_cost(node)
+  def get_obstacle_types(self):
+    return [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.ROCK, EntityType.SAMPLE ]
 
   def is_goal(self, node):
     return super().is_goal(node)
 
   def on_start(self):
-    rover_pos   = self.navigator().get_rover_entity().position()
-    self.target = None
-
     rover_copy = deepcopy(self.navigator().get_rover_entity())
-    
-    while self.target is None:
+    while self.target_entity is None:    
       angle       = random.random() * 2 - 1
-      distance    = random.random() * 70
-      target_pos  = rover_pos + VectorPolar(distance, angle * math.pi).to_cartesian()
+      distance    = random.random() * 80
+      target_pos  = self.navigator().rover_start_position() + VectorPolar(distance, angle * math.pi).to_cartesian()
 
-      if abs(target_pos.x) > 80 or abs(target_pos.y) > 80:
-        continue
       rover_copy.set_position(target_pos)
       if self.env.find_first_colliding(rover_copy) is None:
-        self.target = target_pos
+        self.target_entity = self.env.add_entity(EntityType.EXPLORE, target_pos, 0, 1)
 
-    self.goal_dist = entity_info[EntityType.ROVER].size() / 2
+    self.goal_dist   = entity_info[EntityType.ROVER].size() / 2
+    self.finish_dist = self.goal_dist
 
   def get_type(self):
     '''
@@ -212,33 +222,35 @@ class ExploreRoutine(SearchRoutine):
 
   def is_done(self):
     rover = deepcopy(self.env.get_rover())
-    rover.set_position(self.target)
-
+    rover.set_position(self.target_pos)
     if self.env.has_entities(EntityType.SAMPLE):
       return True
 
     return self.env.find_first_colliding(rover) is not None
+
+  def on_complete(self):
+    self.env.remove(self.target_entity)
     
 class LanderSearchRoutine(SearchRoutine):
   def __init__(self, navigator):
     super().__init__(navigator)
 
-  def calculate_cost(self, node: NavNode):
-    cost = 0
-    rover_copy = deepcopy(self.env.get_rover())
-    rover_copy.set_position(node.get_position())
-    for colliding in self.env.find_colliding(rover_copy, [ EntityType.SAMPLE, EntityType.OBSTACLE, EntityType.ROCK ]):
-      cost = cost + vec2_mag_sqr(colliding.position() - rover_copy.position())
-    return cost + super().calculate_cost(node)
+  def get_obstacle_types(self):
+    return [ EntityType.OBSTACLE, EntityType.ROCK, EntityType.SAMPLE ]
 
-  def can_enter(self, node: NavNode):
+  def can_enter(self, node:NavNode):
     return True
 
   def on_start(self):
-    rover_pos      = self.navigator().get_rover_entity().position()
-    lander, dist   = self.env.find_closest(EntityType.LANDER, rover_pos)
-    self.target    = lander.position() if lander is not None else self.navigator().rover_start_position()
-    self.goal_dist = entity_info[EntityType.ROVER].size()
+    rover_pos             = self.navigator().get_rover_entity().position()
+    self.target_entity, _ = self.env.find_closest(EntityType.LANDER, rover_pos)
+    self.goal_dist        = entity_info[EntityType.ROVER].size()
+    self.finish_dist      = self.goal_dist
+
+  def on_update(self, dt):
+    if self.target_entity is None:
+      self.target_pos = self.navigator().rover_start_position()
+    return super().on_update(dt)
 
   def get_type(self):
     '''
@@ -249,35 +261,32 @@ class LanderSearchRoutine(SearchRoutine):
 class SampleSearchRoutine(SearchRoutine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.sample = None
 
-  def calculate_cost(self, node: NavNode):
-    cost = 0
-    rover_copy = deepcopy(self.env.get_rover())
-    rover_copy.set_position(node.get_position())
-    for colliding in self.env.find_colliding(rover_copy, [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.ROCK ]):
-      cost = cost + vec2_mag_sqr(colliding.position() - rover_copy.position())
-    return cost + super().calculate_cost(node)
+  def get_obstacle_types(self):
+    return [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.ROCK ]
 
   def can_enter(self, node: NavNode):
     return True
 
   def on_start(self):
-    rover_pos         = self.navigator().get_rover_entity().position()
-    self.sample, dist = self.env.find_closest(EntityType.SAMPLE, rover_pos)
-    self.target       = self.sample.position()
-    self.goal_dist    = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.SAMPLE].size()) / 2
+    rover_pos             = self.navigator().get_rover_entity().position()
+    self.target_entity, _ = self.env.find_closest(EntityType.SAMPLE, rover_pos)
+    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.SAMPLE].size()) / 2
+    self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
-    if self.sample not in self.env:
-      self.sample = None
+    if self.target_entity is not None and self.target_entity not in self.env:
+      # The sample was pruned from the environment - try find the next closest sample
+      self.target_entity, _ = self.env.find_closest(EntityType.SAMPLE, self.target_entity.position())
 
-    if self.sample is not None:
-      self.target  = self.sample.position()
+    if self.target_entity is not None:
       super().on_update(dt)
 
   def is_done(self):
-    return self.sample is None or super().is_done()
+    return self.target_entity is None or super().is_done()
+
+  def on_complete(self):
+    self.navigator().set_target_sample(self.target_entity)
 
   def get_type(self):
     '''
@@ -291,30 +300,31 @@ class RockSearchRoutine(SearchRoutine):
     super().__init__(navigator)
     self.rock = None
 
-  def calculate_cost(self, node: NavNode):
-    cost = 0
-    rover_copy = deepcopy(self.env.get_rover())
-    rover_copy.set_position(node.get_position())
-    for colliding in self.env.find_colliding(rover_copy, [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.SAMPLE ]):
-      cost = cost + vec2_mag_sqr(colliding.position() - rover_copy.position())
-    return cost + super().calculate_cost(node)
+  def get_obstacle_types(self):
+    return [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.SAMPLE ]
 
   def can_enter(self, node: NavNode):
     return True
 
   def on_start(self):
-    rover_pos       = self.navigator().get_rover_entity().position()
-    self.rock, dist = self.env.find_closest(EntityType.ROCK, rover_pos)
-    self.target     = self.rock.position()
-    self.goal_dist = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()) / 2
+    rover_pos             = self.navigator().get_rover_entity().position()
+    self.target_entity, _ = self.env.find_closest(EntityType.ROCK, rover_pos)
+    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()) / 2
+    self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
-    if self.rock not in self.env:
-      self.rock = None
+    if self.target_entity is not None and self.target_entity not in self.env:
+      # The sample was pruned from the environment - try find the next closest sample
+      self.target_entity, _ = self.env.find_closest(EntityType.ROCK, self.target_entity.position())
 
-    if self.rock is not None:
-      self.rock  = self.rock.position()
+    if self.target_entity is not None:
       super().on_update(dt)
+
+  def is_done(self):
+    return self.target_entity is None or super().is_done()
+
+  def on_complete(self):
+    self.navigator().set_target_rock(self.target_entity)
 
   def get_type(self):
     '''

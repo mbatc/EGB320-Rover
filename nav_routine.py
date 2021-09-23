@@ -20,8 +20,9 @@ class RoutineType(Enum):
 def direction_to_control_param(target_dir, rover):
   cur_dir        = VectorPolar(1, rover.angle()).to_cartesian().unit()
   target_dir     = target_dir.unit()
-  ori_correction = vec2_cross(cur_dir, target_dir)
-  return 1, ori_correction
+  ori_correction = pow((1 - max(0, vec2_dot(cur_dir, target_dir))), 0.5)
+  ori_correction = ori_correction * sign(vec2_cross(cur_dir, target_dir))
+  return 1 - abs(ori_correction), ori_correction
 
 class Routine:
   '''
@@ -74,4 +75,7 @@ class Routine:
     pass
 
   def on_update(self, dt):
+    pass
+
+  def on_complete(self):
     pass
