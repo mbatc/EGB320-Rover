@@ -21,11 +21,16 @@ class NavViz:
     self.impl.process_inputs()
     return should_close
 
-  def draw(self, env, path):
+  def draw(self, env, path, speed, ori, routine):
     scale = 1
 
     imgui.new_frame()
     imgui.begin("Custom window", True)
+
+    imgui.text('Velocity:         {}'.format(speed))
+    imgui.text('Angular Velocity: {}'.format(ori))
+    imgui.text('Nav Routine:      {}'.format(routine))
+
     draw_list  = imgui.get_window_draw_list()
     wnd_pos    = imgui.get_window_position()
     wnd_size   = imgui.get_window_size()

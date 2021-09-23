@@ -50,8 +50,9 @@ class DropRoutine(Routine):
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
     self.__direction_valid = True
+    cur_dir = VectorPolar(1, self.__rover.angle()).to_cartesian().unit()
 
-    if abs(self.__to_target) < 10:
+    if vec2_dot(cur_dir.unit(), self.__to_target.unit()) > 0.9995:
       self.__sample_dropped = True
       self.navigator().set_drop_sample(True)
 
@@ -62,7 +63,8 @@ class DropRoutine(Routine):
     if not self.__direction_valid or self.__sample_dropped:
       return 0, 0
     else:
-      return direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+      speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+      return speed * 0.1, ori
 
   def get_type(self):
     '''
@@ -86,7 +88,10 @@ class FlipRoutine(Routine):
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
 
-    if abs(self.__to_target) < 3.5:
+    dist = entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()
+    dist = dist / 2
+
+    if abs(self.__to_target) < dist - 3:
       self.__sample_collected = True
       self.navigator().set_flip_rock(True)
 
@@ -94,7 +99,11 @@ class FlipRoutine(Routine):
     return self.__sample_collected
 
   def get_control_parameters(self):
-    return direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+    if self.__sample_collected:
+      return 0, 0
+    else:
+      speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+      return 0.2 * speed, ori
 
   def get_type(self):
     '''

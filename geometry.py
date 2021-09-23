@@ -79,7 +79,7 @@ class Rect(Body):
     return self.size() * 0.5
 
   def closest_point(self, point:Vector):
-    return vec2_clamp(point, self.min, self.max)
+    return vec2_clamp(point, self.min(), self.max())
 
   def contains_point(self, point:Vector):
     return self.closest_point(point) == point

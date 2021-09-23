@@ -215,6 +215,9 @@ class Navigator:
       elif last_routine == RoutineType.SEARCH_ROCK and self.get_target_rock() != None:
         return RoutineType.FLIP_ROCK
 
+      if last_routine == RoutineType.FLIP_ROCK:
+        return RoutineType.SEARCH_LANDER
+
       if self.environment().has_entities(EntityType.SAMPLE):
         return RoutineType.SEARCH_SAMPLE
       if self.environment().has_entities(EntityType.ROCK):
@@ -261,6 +264,9 @@ class Navigator:
     Get the current Navigation Routine environment.
     '''
     return self.__current_routine
+
+  def get_routine_type(self):
+    return RoutineType.NONE if self.__current_routine is None else self.__current_routine.get_type() 
 
   def get_rover_entity(self):
     '''

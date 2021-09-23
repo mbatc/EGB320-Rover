@@ -1,6 +1,5 @@
 # Import navigation code
 from env_params import EntityType
-# from nav_viz    import NavViz
 from navigation import Navigator
 from navigation import DetectedObject
 from geometry   import *
@@ -8,6 +7,17 @@ from geometry   import *
 import env_params
 
 from roverbot_lib import *
+
+# Some options for debugging
+print_timing  = False
+visualize_nav = False
+move_speed    = 0.03
+rotate_speed  = 1
+
+first_update = True
+
+if visualize_nav:
+  from nav_viz import NavViz
 
 class RoverPose:
   def __init__(self, pos, angle):
@@ -58,10 +68,12 @@ def to_detected_objects(object_type, object_list):
   return detected_objects
 
 if __name__ == '__main__':
-    roverBotSim = VREP_RoverRobot('192.168.43.168', robotParameters, sceneParameters)
+    roverBotSim = VREP_RoverRobot('127.0.0.1', robotParameters, sceneParameters)
     roverBotSim.StartSimulator()
 
-    # nav_viz    = NavViz()
+    if visualize_nav:
+      nav_viz    = NavViz()
+
     nav        = Navigator(roverBotSim)
     rover_pose = RoverPose(Vector(0, 0), 0)
 
@@ -70,12 +82,15 @@ if __name__ == '__main__':
     roverBotSim.UpdateObjectPositions()
 
     while True:
-      # nav_viz.update()
       sim_update_start = time.time()
       sim_rover_pos, _, _, _ = roverBotSim.UpdateObjectPositions()
 
       if sim_rover_pos == None:
         continue
+
+      # if first_update:
+      #   input() # Wait for some input
+      #   first_update = False
 
       rover_pose.set_position(Vector(sim_rover_pos[0] * env_params.meter_scale, sim_rover_pos[1] * env_params.meter_scale))
       rover_pose.set_angle(sim_rover_pos[5])
@@ -88,14 +103,17 @@ if __name__ == '__main__':
       visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
 
       nav_start_time = time.time()
-      nav.update(rover_pose, visible_objects)
+      nav.update(rover_pose.delta_position(), rover_pose.get_angle(), visible_objects)
       nav_update_time = time.time() - nav_start_time
-      print('Nav Update Time: {}'.format(nav_update_time))
-
-      # nav_viz.draw(nav.environment(), nav.current_path())
 
       speed, ori_cor = nav.get_control_parameters()
       # print('Speed: {}, Ori: {}'.format(speed, ori_cor))
-      roverBotSim.SetTargetVelocities(speed * 0.05, ori_cor)
+      roverBotSim.SetTargetVelocities(speed * move_speed, ori_cor * rotate_speed)
 
-      print('Sim update time: {}'.format(time.time() - sim_update_start - nav_update_time))
+      if visualize_nav:
+        nav_viz.update()
+        nav_viz.draw(nav.environment(), nav.current_path(), speed, ori_cor, nav.get_routine_type())
+
+      if print_timing:
+        print('Nav Update Time: {}'.format(nav_update_time))
+        print('Sim update time: {}'.format(time.time() - sim_update_start - nav_update_time))

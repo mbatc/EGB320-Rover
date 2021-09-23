@@ -9,6 +9,10 @@ from nav_routine  import *
 import math
 import random
 
+rock_goal_dist   = 3
+sample_goal_dist = 3
+lander_goal_dist = 5
+
 step_directions = [
   (0, 1),
   (1, 1),
@@ -148,6 +152,30 @@ class SearchRoutine(Routine):
     if self.target_entity is not None:
       self.target_pos = self.target_entity.position()
 
+    recalulate_path = False
+    delta_pos = self.navigator().get_rover_delta_position()
+    self.path = [ pos - delta_pos for pos in self.path ]
+
+    path_node_index = 0
+    for pos in self.path:
+      cell = Rect(pos, Vector(step_size, step_size))
+      if not cell.contains_point(self.navigator().get_rover_entity().position()):
+        path_node_index = path_node_index + 1
+      else:
+        break
+    self.path = self.path[path_node_index:]
+
+    rover_copy = deepcopy(self.env.get_rover())
+    for pos in self.path:
+      rover_copy.set_position(pos)
+      if self.env.find_first_colliding(rover_copy, self.get_obstacle_types()) is not None:
+        recalulate_path = True
+        break
+
+    if recalulate_path or len(self.path) == 0:
+      self.recalulate_path()
+
+  def recalulate_path(self):
     rover       = self.navigator().get_rover_entity()
     start_node  = NavNode(self, None, rover.position(), (0, 0))
     path_finder = GraphSearch()
@@ -230,7 +258,7 @@ class ExploreRoutine(SearchRoutine):
 
   def on_complete(self):
     self.env.remove(self.target_entity)
-    
+
 class LanderSearchRoutine(SearchRoutine):
   def __init__(self, navigator):
     super().__init__(navigator)
@@ -244,7 +272,7 @@ class LanderSearchRoutine(SearchRoutine):
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
     self.target_entity, _ = self.env.find_closest(EntityType.LANDER, rover_pos)
-    self.goal_dist        = entity_info[EntityType.ROVER].size()
+    self.goal_dist        = entity_info[EntityType.ROVER].size() / 2 + lander_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
@@ -271,7 +299,7 @@ class SampleSearchRoutine(SearchRoutine):
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
     self.target_entity, _ = self.env.find_closest(EntityType.SAMPLE, rover_pos)
-    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.SAMPLE].size()) / 2
+    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.SAMPLE].size()) / 2 + sample_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
@@ -309,7 +337,7 @@ class RockSearchRoutine(SearchRoutine):
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
     self.target_entity, _ = self.env.find_closest(EntityType.ROCK, rover_pos)
-    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()) / 2
+    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()) / 2 + rock_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
