@@ -1,10 +1,9 @@
 # Import navigation code
-from env_params import EntityType
-from navigation import Navigator
-from navigation import DetectedObject
-from geometry   import *
-
-import env_params
+from ..navigation.env_params import EntityType
+from ..navigation.navigation import Navigator
+from ..navigation.geometry   import *
+from ..interop               import DetectedObject
+from ..navigation            import env_params
 
 from roverbot_lib import *
 

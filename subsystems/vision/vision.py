@@ -3,7 +3,7 @@ import numpy as np
 import random as rng
 import time
 
-from ..interop import DetectedObject
+from ..interop import DetectedObject, ObjectType
 
 def Initialize():
     cap = cv2.VideoCapture(0)
@@ -15,8 +15,8 @@ def Initialize():
 
 def ObjectDetection(cap):
     ret, frame = cap.read()
+    objects = []
     if ret == True:
-            objects = []
             newtime = time.time()
             # Display the resulting frame
             # image = cv2.imread("image.png")
@@ -75,7 +75,7 @@ def ObjectDetection(cap):
                     Bearing1 = round(Bearing,2)
                     cv2.putText(canny_edge_green,('Bearing'+str(Bearing1)),(x+w+10,y-30),0,0.3,(150,255,0))
 
-                    objects.append(DetectedObject("Green",Bearing1,Distance,0)) #0 placeholder for orientation
+                    objects.append(DetectedObject(ObjectType.OBSTACLE,Bearing1,Distance,0)) #0 placeholder for orientation
 
 
             #blue
@@ -109,7 +109,7 @@ def ObjectDetection(cap):
                     Bearing1 = round(Bearing,2)
                     cv2.putText(canny_edge_blue,('Bearing'+str(Bearing1)),(x+w+10,y-30),0,0.3,(150,255,0))
 
-                    objects.append(DetectedObject("Blue",Bearing1,Distance,0)) #0 placeholder for orientation
+                    objects.append(DetectedObject(ObjectType.ROCK,Bearing1,Distance,0)) #0 placeholder for orientation
 
 
             #Orange
@@ -135,7 +135,7 @@ def ObjectDetection(cap):
                      Bearing1 = round(Bearing,2)
                      cv2.putText(canny_edge_orange,('Bearing'+str(Bearing1)),(x+w+10,y-30),0,0.3,(150,255,0))
 
-                     objects.append(DetectedObject("Orange",Bearing1,Distance,0)) #0 placeholder for orientation
+                     objects.append(DetectedObject(ObjectType.SAMPLE,Bearing1,Distance,0)) #0 placeholder for orientation
             
             #Yellow
             canny_edge_yellow = cv2.blur(hsv_thresholded_yellow, (10,10))
@@ -160,7 +160,7 @@ def ObjectDetection(cap):
                      Bearing1 = round(Bearing,2)
                      cv2.putText(canny_edge_yellow,('Bearing'+str(Bearing1)),(x+w+10,y-30),0,0.3,(150,255,0))
 
-                     objects.append(DetectedObject("Yellow",Bearing1,Distance,0)) #0 placeholder for orientation
+                     objects.append(DetectedObject(ObjectType.LANDER,Bearing1,Distance,0)) #0 placeholder for orientation
 
 
             if ((time.time()-newtime)!=0):
@@ -181,24 +181,5 @@ def ObjectDetection(cap):
             cv2.imshow('Frame_Detections', img)
             # cv2.imshow('Frame_Threshold_edges_blue',  blue_edges)
             # cv2.imshow('Frame_Threshold_edges_orange',  orange_edges)
-            return objects
-            
 
-cap = Initialize()
-current = True
-while current:
-    Objectarray = ObjectDetection(cap)
-    
-    if (len(Objectarray)!=0):
-        print(Objectarray[0].type)
-    
-
-
-
-
-
-    if cv2.waitKey(20) & 0xFF == ord('q'):
-        current = False
-
-
-
+    return objects

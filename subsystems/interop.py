@@ -7,6 +7,15 @@ class SCS_ACTION(Enum):
   FLIP_ROCK      = 2,
   COLLECT_SAMPLE = 3
 
+class ObjectType(Enum):
+  ROCK     = 'rock',
+  SAMPLE   = 'sample',
+  WALL     = 'wall',
+  OBSTACLE = 'obstacle',
+  LANDER   = 'lander',
+  ROVER    = 'rover',
+  EXPLORE  = 'explore'
+
 class DetectedObject:
   def __init__(self, type, distance, heading, angle):
     self.__type          = type

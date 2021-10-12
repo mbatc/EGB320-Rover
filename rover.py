@@ -22,6 +22,9 @@ if __name__ == "__main__":
     objects = vision.DetectedObject(detector)
 
     if objects is not None:
+      for obj in objects:
+        print(obj)
+
       navigator.update(nav.Vector(0, 0), 0, objects)
 
       scs_action = navigator.get_scs_action()
