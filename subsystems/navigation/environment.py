@@ -317,7 +317,7 @@ class Environment:
       return False
 
   def __str__(self):
-    return '\n'.join(['\n'.join([entity for entity in group]) for group in self.groups])
+    return '\n'.join([str(entity) for entity in self.entities])
 
   def __contains__(self, entity):
     if not isinstance(entity, Entity):
