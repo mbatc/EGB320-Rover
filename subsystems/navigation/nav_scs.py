@@ -1,4 +1,4 @@
-from .env_params  import EntityType
+from .env_params  import ObjectType
 from .env_params  import entity_info
 from .nav_routine import *
 from vector_2d   import Vector
@@ -45,7 +45,7 @@ class DropRoutine(Routine):
 
   def on_start(self):
     # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.LANDER, self.__rover.position())
+    self.__target, _ = self.navigator().environment().find_closest(ObjectType.LANDER, self.__rover.position())
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
@@ -83,12 +83,12 @@ class FlipRoutine(Routine):
 
   def on_start(self):
     # Get the closest sample to the rover
-    self.__target, _ = self.navigator().environment().find_closest(EntityType.ROCK, self.__rover.position())
+    self.__target, _ = self.navigator().environment().find_closest(ObjectType.ROCK, self.__rover.position())
 
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
 
-    dist = entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()
+    dist = entity_info[ObjectType.ROVER].size() + entity_info[ObjectType.ROCK].size()
     dist = dist / 2
 
     if abs(self.__to_target) < dist - 3:

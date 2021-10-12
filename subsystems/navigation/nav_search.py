@@ -1,5 +1,5 @@
 from .environment import Entity
-from .env_params   import EntityType
+from .env_params   import ObjectType
 from .env_params   import entity_info
 from .graph_search import *
 from .geometry     import *
@@ -223,7 +223,7 @@ class ExploreRoutine(SearchRoutine):
     super().__init__(navigator)
 
   def get_obstacle_types(self):
-    return [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.ROCK, EntityType.SAMPLE ]
+    return [ ObjectType.LANDER, ObjectType.OBSTACLE, ObjectType.ROCK, ObjectType.SAMPLE ]
 
   def is_goal(self, node):
     return super().is_goal(node)
@@ -237,9 +237,9 @@ class ExploreRoutine(SearchRoutine):
 
       rover_copy.set_position(target_pos)
       if self.env.find_first_colliding(rover_copy) is None:
-        self.target_entity = self.env.add_entity(EntityType.EXPLORE, target_pos, 0, 1)
+        self.target_entity = self.env.add_entity(ObjectType.EXPLORE, target_pos, 0, 1)
 
-    self.goal_dist   = entity_info[EntityType.ROVER].size() / 2
+    self.goal_dist   = entity_info[ObjectType.ROVER].size() / 2
     self.finish_dist = self.goal_dist
 
   def get_type(self):
@@ -251,7 +251,7 @@ class ExploreRoutine(SearchRoutine):
   def is_done(self):
     rover = deepcopy(self.env.get_rover())
     rover.set_position(self.target_pos)
-    if self.env.has_entities(EntityType.SAMPLE):
+    if self.env.has_entities(ObjectType.SAMPLE):
       return True
 
     return self.env.find_first_colliding(rover) is not None
@@ -264,15 +264,15 @@ class LanderSearchRoutine(SearchRoutine):
     super().__init__(navigator)
 
   def get_obstacle_types(self):
-    return [ EntityType.OBSTACLE, EntityType.ROCK, EntityType.SAMPLE ]
+    return [ ObjectType.OBSTACLE, ObjectType.ROCK, ObjectType.SAMPLE ]
 
   def can_enter(self, node:NavNode):
     return True
 
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
-    self.target_entity, _ = self.env.find_closest(EntityType.LANDER, rover_pos)
-    self.goal_dist        = entity_info[EntityType.ROVER].size() / 2 + lander_goal_dist
+    self.target_entity, _ = self.env.find_closest(ObjectType.LANDER, rover_pos)
+    self.goal_dist        = entity_info[ObjectType.ROVER].size() / 2 + lander_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
@@ -291,21 +291,21 @@ class SampleSearchRoutine(SearchRoutine):
     super().__init__(navigator)
 
   def get_obstacle_types(self):
-    return [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.ROCK ]
+    return [ ObjectType.LANDER, ObjectType.OBSTACLE, ObjectType.ROCK ]
 
   def can_enter(self, node: NavNode):
     return True
 
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
-    self.target_entity, _ = self.env.find_closest(EntityType.SAMPLE, rover_pos)
-    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.SAMPLE].size()) / 2 + sample_goal_dist
+    self.target_entity, _ = self.env.find_closest(ObjectType.SAMPLE, rover_pos)
+    self.goal_dist        = (entity_info[ObjectType.ROVER].size() + entity_info[ObjectType.SAMPLE].size()) / 2 + sample_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
     if self.target_entity is not None and self.target_entity not in self.env:
       # The sample was pruned from the environment - try find the next closest sample
-      self.target_entity, _ = self.env.find_closest(EntityType.SAMPLE, self.target_entity.position())
+      self.target_entity, _ = self.env.find_closest(ObjectType.SAMPLE, self.target_entity.position())
 
     if self.target_entity is not None:
       super().on_update(dt)
@@ -329,21 +329,21 @@ class RockSearchRoutine(SearchRoutine):
     self.rock = None
 
   def get_obstacle_types(self):
-    return [ EntityType.LANDER, EntityType.OBSTACLE, EntityType.SAMPLE ]
+    return [ ObjectType.LANDER, ObjectType.OBSTACLE, ObjectType.SAMPLE ]
 
   def can_enter(self, node: NavNode):
     return True
 
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
-    self.target_entity, _ = self.env.find_closest(EntityType.ROCK, rover_pos)
-    self.goal_dist        = (entity_info[EntityType.ROVER].size() + entity_info[EntityType.ROCK].size()) / 2 + rock_goal_dist
+    self.target_entity, _ = self.env.find_closest(ObjectType.ROCK, rover_pos)
+    self.goal_dist        = (entity_info[ObjectType.ROVER].size() + entity_info[ObjectType.ROCK].size()) / 2 + rock_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
     if self.target_entity is not None and self.target_entity not in self.env:
       # The sample was pruned from the environment - try find the next closest sample
-      self.target_entity, _ = self.env.find_closest(EntityType.ROCK, self.target_entity.position())
+      self.target_entity, _ = self.env.find_closest(ObjectType.ROCK, self.target_entity.position())
 
     if self.target_entity is not None:
       super().on_update(dt)

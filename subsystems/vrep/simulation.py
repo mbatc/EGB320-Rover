@@ -1,5 +1,5 @@
 # Import navigation code
-from ..navigation.env_params import EntityType
+from ..navigation.env_params import ObjectType
 from ..navigation.navigation import Navigator
 from ..navigation.geometry   import *
 from ..interop               import DetectedObject
@@ -96,10 +96,10 @@ if __name__ == '__main__':
 
       sample, lander, obstacle, rock = roverBotSim.GetDetectedObjects()
       visible_objects = []
-      visible_objects = visible_objects + to_detected_objects(EntityType.ROCK,     rock)
-      visible_objects = visible_objects + to_detected_objects(EntityType.SAMPLE,   sample)
-      visible_objects = visible_objects + to_detected_objects(EntityType.OBSTACLE, obstacle)
-      visible_objects = visible_objects + to_detected_objects(EntityType.LANDER,   lander)
+      visible_objects = visible_objects + to_detected_objects(ObjectType.ROCK,     rock)
+      visible_objects = visible_objects + to_detected_objects(ObjectType.SAMPLE,   sample)
+      visible_objects = visible_objects + to_detected_objects(ObjectType.OBSTACLE, obstacle)
+      visible_objects = visible_objects + to_detected_objects(ObjectType.LANDER,   lander)
 
       nav_start_time = time.time()
       nav.update(rover_pose.delta_position(), rover_pose.get_angle(), visible_objects)

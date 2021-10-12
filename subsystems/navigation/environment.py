@@ -173,7 +173,7 @@ class Environment:
     group.append(new_entity)
     self.entities.append(new_entity)
 
-    if new_entity.type() == env_params.EntityType.ROVER:
+    if new_entity.type() == env_params.ObjectType.ROVER:
       self.__rover = new_entity
 
     return new_entity

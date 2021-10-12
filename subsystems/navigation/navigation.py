@@ -31,8 +31,8 @@ class Navigator:
     self.__routine_delay      = 2
     self.__routine_end_time   = 0
     self.__last_routine_type  = RoutineType.NONE
-    self.__rover              = self.__environment.add_entity(EntityType.ROVER, Vector(0, 0), 0, 1)
-    self.__lander             = self.__environment.add_entity(EntityType.LANDER, Vector(0, 0), 0, 1)
+    self.__rover              = self.__environment.add_entity(ObjectType.ROVER, Vector(0, 0), 0, 1)
+    self.__lander             = self.__environment.add_entity(ObjectType.LANDER, Vector(0, 0), 0, 1)
     self.__last_update        = time.time()
     self.__target_sample      = None
     self.__target_rock        = None
@@ -103,8 +103,8 @@ class Navigator:
     sample_to_remove = []
     # If any samples are intersecting with the lander, remove them
     # We probably already collected it
-    for sample in self.environment().get_group(EntityType.SAMPLE):
-      if self.environment().find_first_colliding(sample, EntityType.LANDER) is not None:
+    for sample in self.environment().get_group(ObjectType.SAMPLE):
+      if self.environment().find_first_colliding(sample, ObjectType.LANDER) is not None:
         sample_to_remove.append(sample)
     for sample in sample_to_remove:
       self.environment().remove(sample)
@@ -116,7 +116,7 @@ class Navigator:
     rover_pos = self.__rover.position()
     rover_dir = self.__rover.direction()
     rover_fov = 60
-    for entity_type in [EntityType.SAMPLE, EntityType.ROCK, EntityType.OBSTACLE]:
+    for entity_type in [ObjectType.SAMPLE, ObjectType.ROCK, ObjectType.OBSTACLE]:
       self.environment().prune_visible(
         self.__dt,
         visible_entities,
@@ -185,9 +185,9 @@ class Navigator:
       if last_routine == RoutineType.FLIP_ROCK:
         return RoutineType.SEARCH_LANDER
 
-      if self.environment().has_entities(EntityType.SAMPLE):
+      if self.environment().has_entities(ObjectType.SAMPLE):
         return RoutineType.SEARCH_SAMPLE
-      if self.environment().has_entities(EntityType.ROCK):
+      if self.environment().has_entities(ObjectType.ROCK):
         return RoutineType.SEARCH_ROCK
 
     return RoutineType.EXPLORE

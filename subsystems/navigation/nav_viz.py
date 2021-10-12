@@ -1,5 +1,5 @@
 
-from .env_params import EntityType
+from .env_params import ObjectType
 from .env_params import entity_info
 
 import glfw
