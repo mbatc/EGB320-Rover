@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, './fusion')
-
 from math import *
 import time
 import copy

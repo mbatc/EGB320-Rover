@@ -1,10 +1,10 @@
-from environment import Entity
-from env_params import EntityType
-from env_params import entity_info
-from copy         import *
-from graph_search import *
-from geometry     import *
-from nav_routine  import *
+from .environment import Entity
+from .env_params   import EntityType
+from .env_params   import entity_info
+from .graph_search import *
+from .geometry     import *
+from .nav_routine  import *
+from copy          import *
 
 import math
 import random

@@ -1,6 +1,6 @@
-from env_params  import EntityType
-from env_params  import entity_info
-from nav_routine import *
+from .env_params  import EntityType
+from .env_params  import entity_info
+from .nav_routine import *
 from vector_2d   import Vector
 
 class CollectRoutine(Routine):

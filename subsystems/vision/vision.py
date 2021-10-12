@@ -1,16 +1,9 @@
-import cv2
+from . import cv2
 import numpy as np
 import random as rng
 import time
 
-class DetectedObject():
-    def __init__(self, ObjectType, Bearing, Distance, Orientation):
-        self.type = ObjectType
-        self.bearing = Bearing
-        self.distance = Distance
-        self.orientation = Orientation
-        
-
+from ..interop import DetectedObject
 
 def Initialize():
     cap = cv2.VideoCapture(0)
@@ -19,7 +12,6 @@ def Initialize():
     if (cap.isOpened() == False):
         print("Error opening video stream or file")
     return cap
-
 
 def ObjectDetection(cap):
     ret, frame = cap.read()

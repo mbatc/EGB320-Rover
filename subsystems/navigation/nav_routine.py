@@ -1,6 +1,6 @@
 from enum import *
 
-from geometry import *
+from .geometry import *
 
 class RoutineType(Enum):
   '''

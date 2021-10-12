@@ -1,47 +1,14 @@
-from environment import Environment
-from geometry import *
+from .environment import Environment
+from .geometry import *
+from .env_params import *
+from .nav_scs    import *
+from .nav_search import *
+from ..interop  import *
 
 import time
 
-from env_params    import *
-from nav_scs       import *
-from nav_search    import *
-
-class DetectedObject:
-  def __init__(self, type, distance, heading, angle):
-    self.__type          = type
-    self.__heading       = heading
-    self.__distance      = distance
-    self.__best_distance = 10
-    self.__best_heading  = 5
-    self.__angle         = angle
-    self.missing_time  = 0
-
-  def type(self):
-    return self.__type
-
-  def distance(self):
-    return self.__distance
-
-  def calculate_heading(self, rover):
-    return rover.angle() + self.__heading
-
-  def calculate_angle(self, rover):
-    return rover.angle() + self.__angle
-
-  def calculate_position(self, rover):
-    return rover.position() + VectorPolar(self.distance(), self.calculate_heading(rover)).to_cartesian()
-
-  def get_confidence(self):
-    dist_confidence = max(0, min(1, self.__best_distance / self.__distance))
-    head_confidence = max(0, min(1, abs(self.__best_heading) / abs(self.__heading)))
-    return dist_confidence * head_confidence
-
-  def __str__(self):
-    return '(type:{}, angle: {}, dist: {})'.format(self.__type, self.__heading, self.__distance)
-
 class Navigator:
-  def __init__(self, sim):
+  def __init__(self):
     self.__current_routine = None
     self.__environment     = Environment()
     self.__routines = {
@@ -55,7 +22,7 @@ class Navigator:
     }
 
     self.__has_sample         = False
-    self.__sample_to_collect = False
+    self.__sample_to_collect  = False
     self.__try_flip_rock      = False
     self.__try_drop_sample    = False
     self.__scs_delay          = 2
@@ -68,12 +35,12 @@ class Navigator:
     self.__lander             = self.__environment.add_entity(EntityType.LANDER, Vector(0, 0), 0, 1)
     self.__last_update        = time.time()
     self.__target_sample      = None
-    self.__target_rock      = None
+    self.__target_rock        = None
     self.__dt                 = 0
     self.__rover_start_pos    = Vector(0, 0)
     self.__rover_delta_pos    = Vector(0, 0)
-    self.__attached = []
-    self.__sim = sim
+    self.__attached           = []
+    self.__scs_action         = SCS_ACTION.NONE
 
   def has_sample(self):
     return self.__has_sample
@@ -273,6 +240,12 @@ class Navigator:
     Get the entity that represents the Rover.
     '''
     return self.__rover
+
+  def complete_scs_action(self):
+    self.__scs_action = SCS_ACTION.NONE
+
+  def get_scs_action(self):
+    return self.__scs_action
 
   def get_control_parameters(self):
     '''

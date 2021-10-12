@@ -2,9 +2,9 @@
 from sys import float_info
 # from typing import get_args
 from enum     import *
-from geometry import *
+from .geometry import *
 
-import env_params
+from . import env_params
 import math
 
 def weighted_average(a, b, a_w, b_w):

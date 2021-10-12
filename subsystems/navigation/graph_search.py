@@ -1,7 +1,6 @@
 import queue
 import sys
 
-
 class PrioritizedItem:
   def __init__(self, priority, item):
     self.priority = priority

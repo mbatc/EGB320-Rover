@@ -1,6 +1,6 @@
 
-from env_params import EntityType
-from env_params import entity_info
+from .env_params import EntityType
+from .env_params import entity_info
 
 import glfw
 import OpenGL.GL as gl
