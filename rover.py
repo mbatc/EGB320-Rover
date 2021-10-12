@@ -19,7 +19,7 @@ if __name__ == "__main__":
   detector  = vision.Initialize()
 
   while True:
-    objects = vision.DetectedObject(detector)
+    objects = vision.ObjectDetection(detector)
 
     if objects is not None:
       for obj in objects:
