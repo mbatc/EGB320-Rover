@@ -1,9 +1,11 @@
+from subsystems.navigation.pose_estimation import PoseEstimator
 from .environment import Environment
 from .geometry import *
 from .env_params import *
 from .nav_scs    import *
 from .nav_search import *
 from ..interop  import *
+from .pose_estimation import PoseEstimator
 
 import time
 
@@ -25,8 +27,6 @@ class Navigator:
     self.__sample_to_collect  = False
     self.__try_flip_rock      = False
     self.__try_drop_sample    = False
-    self.__scs_delay          = 2
-    self.__scs_start_time     = 0
     self.__is_scs_active      = False
     self.__routine_delay      = 2
     self.__routine_end_time   = 0
@@ -41,6 +41,7 @@ class Navigator:
     self.__rover_delta_pos    = Vector(0, 0)
     self.__attached           = []
     self.__scs_action         = SCS_ACTION.NONE
+    self.__pose_estimator     = PoseEstimator()
 
   def has_sample(self):
     return self.__has_sample
@@ -63,31 +64,28 @@ class Navigator:
   def rover_start_position(self):
     return self.__rover_start_pos
 
-  def get_rover_delta_position(self):
-    return self.__rover_delta_pos
+  # def get_rover_delta_position(self):
+  #   return self.__rover_delta_pos
 
-  def update(self, rover_delta_pos, rover_angle, visible_objects):
+  def update(self, visible_objects):
     update_time = time.time()
     self.__dt   = update_time - self.__last_update
-    self.__rover_delta_pos = rover_delta_pos
-    self.__rover.set_position(self.__rover_delta_pos)
-    self.__rover.set_angle   (rover_angle)
+    # self.__rover_delta_pos = Vector(0, 0)
+    # self.__rover_start_pos = Vector(0, 0)
+    self.__rover_delta_pos = Vector(0, 0)
     self.__rover_start_pos -= self.__rover_delta_pos
-    self.environment().bring_to_center(self.__rover)
 
     for entity in self.__attached:
       entity.set_position(self.__rover.position())
 
     self.update_environment(visible_objects)
 
-    if not self.__is_scs_active:
-      self.update_navigation_routine(self.__dt)
+    # self.__rover.set_position(self.__rover_delta_pos)
+    # self.__rover.set_angle   (rover_angle)
+    # self.environment().bring_to_center(self.__rover)
 
-      if self.try_perform_sample_collection_action():
-        self.__is_scs_active  = True
-        self.__scs_start_time = time.time()
-    else:
-      self.__is_scs_active = self.__is_scs_active and time.time() - self.__scs_start_time < self.__scs_delay
+    if self.__scs_action == SCS_ACTION.NONE:
+      self.update_navigation_routine(self.__dt)
 
   def update_environment(self, visible_objects):
     # Update the map of the environment
@@ -99,6 +97,8 @@ class Navigator:
           object.calculate_position(self.__rover),
           object.calculate_angle(self.__rover),
           object.get_confidence()))
+
+    self.estimate_rover_pose(visible_entities)
 
     sample_to_remove = []
     # If any samples are intersecting with the lander, remove them
@@ -144,26 +144,48 @@ class Navigator:
       if self.routine().is_done():
         self.finish_routine()
 
-  def try_perform_sample_collection_action(self):
-    '''
-    Try perform an action using the sample collection system.
-    '''
-    if self.__sample_to_collect is not None:
-      if self.__has_sample:
-        self.__environment.remove(self.__sample_to_collect)
-      self.__sample_to_collect = None
-      return True
-    elif self.__try_drop_sample:
-      self.__sim.DropSample()
-      self.__has_sample = False
-      self.__try_drop_sample = False
-      self.__attached = []
-      return True
-    elif self.__try_flip_rock:
-      self.__try_flip_rock = False
-      return True
+  def estimate_rover_pose(self, visible_entities):
+    rover_dir = self.__rover.direction()
 
-    return False
+    rover_delta_pos   = Vector(0,0)
+    rover_delta_theta = 0
+
+    # Estimate rover position/orientation based on movement of visible entities
+    for entity in visible_entities:
+      last_position = entity.last_position() - self.__rover.position()
+      new_position  = entity.position() - self.__rover.position()
+      outer_arc     = Circle(Vector(0, 0), abs(last_position))
+      pos_trace     = Line(new_position - rover_dir * outer_arc.radius(), new_position + rover_dir * outer_arc.radius())
+      a, b = calculate_intersections(pos_trace, outer_arc)
+      if a is None:
+        arc_pos = b
+      elif b is None:
+        arc_pos = a
+      else:
+        arc_pos = a if abs(a - new_position) < abs(b - new_position) else b
+      arc = vec2_angle(arc_pos, new_position) * sign(vec2_cross(arc_pos, new_position))
+
+      rover_delta_pos   = rover_delta_pos   + (arc_pos - new_position)
+      rover_delta_theta = rover_delta_theta - arc
+
+    vel, angular_vel = self.get_control_parameters()
+    inputs = [vel, angular_vel]
+
+    if len(visible_entities) > 0:
+      # Apply rover pose delta estimate
+      rover_delta_theta = rover_delta_theta / len(visible_entities)
+      rover_delta_pos   = rover_delta_pos   / len(visible_entities)
+      self.__pose_estimator.add_sample(inputs, [rover_delta_pos, rover_delta_theta])
+
+    pose = self.__pose_estimator.get_delta(inputs)
+    self.__rover.set_position(self.__rover.position() + pose[0])
+    self.__rover.set_angle(self.__rover.angle()       + pose[1])
+
+    for entity in visible_entities:
+      shifted = entity.position() + rover_delta_pos
+      shifted = (shifted - self.__rover.position()).to_polar()
+      shifted = VectorPolar(shifted.module, shifted.angle + rover_delta_theta).to_cartesian()
+      entity.set_position(self.__rover.position() + shifted)
 
   def decide_action(self):
     '''
@@ -241,12 +263,6 @@ class Navigator:
     '''
     return self.__rover
 
-  def complete_scs_action(self):
-    self.__scs_action = SCS_ACTION.NONE
-
-  def get_scs_action(self):
-    return self.__scs_action
-
   def get_control_parameters(self):
     '''
     Get the current control parameters for the navigation system.
@@ -256,23 +272,26 @@ class Navigator:
     else:
       return self.__current_routine.get_control_parameters()
 
-  def try_collect_sample(self, try_collect_sample):
+  def collect_sample(self):
     '''
     Set a flag indicating that we should attempt to collect a sample.
     '''
-    self.__has_sample        = self.__sim.CollectSample()
-    if self.__has_sample:
-      self.__sample_to_collect = try_collect_sample
-    return self.__has_sample
+    self.__scs_action = SCS_ACTION.COLLECT_SAMPLE
 
-  def set_flip_rock(self, try_collect_sample):
+  def flip_rock(self):
     '''
     Set a flag indicating that we should attempt to flip a rock.
     '''
-    self.__try_flip_rock = try_collect_sample
+    self.__scs_action = SCS_ACTION.FLIP_ROCK
     
-  def set_drop_sample(self, try_collect_sample):
+  def drop_sample(self):
     '''
     Set a flag indicating that we should attempt to drop a sample.
     '''
-    self.__try_drop_sample = try_collect_sample
+    self.__scs_action = SCS_ACTION.DROP_SAMPLE
+
+  def complete_scs_action(self):
+    self.__scs_action = SCS_ACTION.NONE
+
+  def get_scs_action(self):
+    return self.__scs_action

@@ -1,3 +1,4 @@
+from numpy import square
 from vector_2d import Vector
 from vector_2d import VectorPolar
 
@@ -6,8 +7,11 @@ from math import *
 
 import sys
 
+EPS = 1e-7
+
 # Math functions
 def sign(x): return 1 if x > 0 else -1
+def sq(x): return x * x
 
 # Additional useful Vec2 functions
 def vec2_round(a:Vector):           return Vector(round(a.x), round(a.y))
@@ -17,6 +21,7 @@ def vec2_max(a:Vector, b:Vector):   return Vector(x=max(a.x, b.x), y=max(a.y, b.
 def vec2_min(a:Vector, b:Vector):   return Vector(x=min(a.x, b.x), y=min(a.y, b.y))
 def vec2_cross(a:Vector, b:Vector): return a.x * b.y - b.x * a.y
 def vec2_clamp(a:Vector, min_vec:Vector, max_vec:Vector): return vec2_max(vec2_min(a, max_vec), min_vec)
+def vec2_angle(a:Vector, b:Vector): return acos(max(-1, min(1, vec2_dot(a, b) / (abs(a) * abs(b)))))
 
 class Body:
   def transformed(self, translation, rotation):
@@ -163,6 +168,9 @@ class Line(Body):
   def end(self):
     return self.__end
 
+  def point_at(self, t):
+    return (1 - t) * self.__start + t * self.__end
+
   def length(self):
     return abs(self.__end - self.__start)
 
@@ -221,28 +229,8 @@ def intersect(a, b):
 
 @dispatch(Circle, Line)
 def intersect(a, b):
-  f = a.center() - b.start()
-  r = a.radius()
-  d = b.end() - b.start()
-
-  b = vec2_dot(d, d)
-  a = 2 * vec2_dot(f, d)
-  c = vec2_dot(f, f) - r * r
-
-  discriminant = a * a - 4 * b * c
-  if discriminant < 0:
-    return False
-
-  discriminant = discriminant
-  t1 = -(a + discriminant) / (2 * b)
-  t2 = -(a - discriminant) / (2 * b)
-
-  if t1 >= 0 and t1 <= 1:
-    return True
-  if t2 >= 0 and t2 <= 1:
-    return True
-
-  return False
+  enter_point, exit_point = calculate_intersections(b, a)
+  return enter_point is not None or exit_point is not None
 
 @dispatch(Line, Line)
 def intersect(a, b):
@@ -263,3 +251,31 @@ def intersect(a, b):
 @dispatch(Line, Circle)
 def intersect(a, b):
   return intersect(b, a)
+
+def calculate_intersections(segment, circle):
+  f = segment.start() - circle.center()
+  r = circle.radius()
+  d = segment.end() - segment.start()
+
+  a = vec2_dot(d, d)
+  b = 2 * vec2_dot(f, d)
+  c = vec2_dot(f, f) - r * r
+
+  discriminant = b * b - 4 * a * c
+  if discriminant < 0:
+    return None, None
+
+  discriminant = sqrt(discriminant)
+  t1 = (-b - discriminant) / (2 * a)
+  t2 = (-b + discriminant) / (2 * a)
+
+  enter = None
+  exit  = None
+
+  if t1 >= 0 and t1 <= 1:
+    enter = segment.point_at(t1)
+  if t2 >= 0 and t2 <= 1:
+    exit  = segment.point_at(t2)
+
+  return enter, exit
+ 
