@@ -17,13 +17,13 @@ class ObjectType(Enum):
   EXPLORE  = 'explore'
 
 class DetectedObject:
-  def __init__(self, type, distance, heading, angle):
+  def __init__(self, type, heading, distance, angle):
     self.__type          = type
     self.__heading       = heading
     self.__distance      = distance
+    self.__angle         = angle
     self.__best_distance = 10
     self.__best_heading  = 5
-    self.__angle         = angle
     self.missing_time  = 0
 
   def type(self):

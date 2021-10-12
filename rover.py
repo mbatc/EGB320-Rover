@@ -26,6 +26,8 @@ if __name__ == "__main__":
         print(obj)
 
       navigator.update(nav.Vector(0, 0), 0, objects)
+      print('-- Environment --')
+      print(navigator.environment())
 
       scs_action = navigator.get_scs_action()
       if scs_action == SCS_ACTION.NONE:
