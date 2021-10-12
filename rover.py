@@ -10,16 +10,16 @@ sys.path.insert(0, './vision')
 sys.path.insert(0, './mobility')
 
 from subsystems.navigation import navigation as nav
-# from subsystems.vision     import vision
+from subsystems.vision     import vision
 from subsystems.mobility   import mobility
 from subsystems.scs        import scs
 
 if __name__ == "__main__":
   navigator = nav.Navigator()
-  # detector  = vision.Initialize()
+  detector  = vision.Initialize()
 
   while True:
-    objects = [] # vision.DetectedObject(detector)
+    objects = vision.DetectedObject(detector)
 
     if objects is not None:
       navigator.update(nav.Vector(0, 0), 0, objects)

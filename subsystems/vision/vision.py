@@ -1,4 +1,4 @@
-from . import cv2
+import cv2
 import numpy as np
 import random as rng
 import time
