@@ -10,7 +10,7 @@ from roverbot_lib import *
 
 # Some options for debugging
 print_timing  = False
-visualize_nav = False
+visualize_nav = True
 move_speed    = 0.03
 rotate_speed  = 1
 
