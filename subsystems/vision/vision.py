@@ -3,6 +3,8 @@ import numpy as np
 import random as rng
 import time
 
+from ..interop import DetectedObject, ObjectType
+
 def Initialize():
     cap = cv2.VideoCapture(0)
     # Check if camera opened successfully
@@ -14,8 +16,8 @@ def Initialize():
 
 def ObjectDetection(cap):
     ret, frame = cap.read()
+    objects = []
     if ret == True:
-            objects = []
             newtime = time.time()
             # Display the resulting frame
             # image = cv2.imread("image.png")
@@ -216,5 +218,5 @@ def ObjectDetection(cap):
             cv2.imshow('Frame_Detections', img)
             # cv2.imshow('Frame_Threshold_edges_blue',  blue_edges)
             # cv2.imshow('Frame_Threshold_edges_orange',  orange_edges)
-            return objects
 
+    return objects
