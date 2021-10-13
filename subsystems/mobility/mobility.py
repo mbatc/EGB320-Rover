@@ -1,5 +1,5 @@
 try:
-    import RPi.GPIO
+    import RPi.GPIO as GPIO
     imported = True
 except (RuntimeError, ModuleNotFoundError):
     GPIO = None
@@ -19,6 +19,9 @@ pa = None
 pb = None
 
 def initialze():
+    global pa
+    global pb
+
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
 

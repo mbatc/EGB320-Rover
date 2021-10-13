@@ -36,6 +36,8 @@ if __name__ == "__main__":
   else:
     print('Failed to vision mobility system. Perhaps a module is missing')
 
+
+  print('Rover Command Line Interface.\nType \'help\' for a list of commands.')
   while True:
     cmd_id, args = cmdLine.get_command()
     if cmd_id == cmdline.Command.COLLECT_SAMPLE:

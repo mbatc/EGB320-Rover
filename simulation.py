@@ -95,22 +95,18 @@ if __name__ == '__main__':
       nav_update_time = time.time() - nav_start_time
 
       scs_action = nav.get_scs_action()
-
-      if scs_action == SCS_ACTION.NONE:
-        speed, ori_cor = nav.get_control_parameters()
-        roverBotSim.SetTargetVelocities(speed, ori_cor)
-      else:
-        roverBotSim.SetTargetVelocities(0, 0)
-        # if (scs_action == SCS_ACTION.FLIP_ROCK):
-        #   roverBotSim.DropSample()
-        if (scs_action == SCS_ACTION.DROP_SAMPLE):
-          roverBotSim.DropSample()
-          if not roverBotSim.SampleCollected():
-            nav.complete_scs_action()
-        if (scs_action == SCS_ACTION.COLLECT_SAMPLE):
-          roverBotSim.CollectSample()
-          if roverBotSim.SampleCollected():
-            nav.complete_scs_action()
+      speed, ori_cor = nav.get_control_parameters()
+      roverBotSim.SetTargetVelocities(speed, ori_cor)
+      # if (scs_action == SCS_ACTION.FLIP_ROCK):
+     #   roverBotSim.DropSample()
+      if (scs_action == SCS_ACTION.DROP_SAMPLE):
+        roverBotSim.DropSample()
+        if not roverBotSim.SampleCollected():
+          nav.complete_scs_action()
+      if (scs_action == SCS_ACTION.COLLECT_SAMPLE):
+        roverBotSim.CollectSample()
+        if roverBotSim.SampleCollected():
+          nav.complete_scs_action()
 
       if visualize_nav:
         nav_viz.update()
