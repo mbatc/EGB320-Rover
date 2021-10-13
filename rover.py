@@ -25,7 +25,7 @@ if __name__ == "__main__":
       for obj in objects:
         print(obj)
 
-      navigator.update(nav.Vector(0, 0), 0, objects)
+      navigator.update(objects)
       print('-- Environment --')
       print(navigator.environment())
 
