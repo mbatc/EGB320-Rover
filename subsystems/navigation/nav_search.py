@@ -153,8 +153,8 @@ class SearchRoutine(Routine):
       self.target_pos = self.target_entity.position()
 
     recalulate_path = False
-    delta_pos = self.navigator().get_rover_delta_position()
-    self.path = [ pos - delta_pos for pos in self.path ]
+    # delta_pos = self.navigator().get_rover_delta_position()
+    # self.path = [ pos - delta_pos for pos in self.path ]
 
     path_node_index = 0
     for pos in self.path:

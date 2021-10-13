@@ -1,5 +1,5 @@
 #import any required python modules
-import vrep
+from . import vrep
 import time
 import math
 import numpy as np

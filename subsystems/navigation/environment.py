@@ -13,6 +13,7 @@ def weighted_average(a, b, a_w, b_w):
 class Entity:
   def __init__(self, entity_type, position, angle, confidence, body:Body):
     self.__entity_type = entity_type
+    self.__last_pos    = position
     self.__position    = position
     self.__angle       = angle
     self.__confidence  = confidence
@@ -24,15 +25,22 @@ class Entity:
     Update the entities position and angle using a weighted average of the current confidence,
     and the new confidence.
     '''
+    self.__last_pos   = self.__position
     self.__position   = weighted_average(self.position(), new_pos, self.confidence(), new_confidence)
     self.__angle      = weighted_average(self.angle(), new_angle, self.confidence(), new_confidence)
     self.__confidence = (new_confidence + self.confidence()) * 0.5
+
+  def last_position(self):
+    return self.__last_pos
 
   def set_position(self, new_pos):
     self.__position = new_pos
 
   def set_angle(self, new_angle):
     self.__angle = new_angle
+
+  def get_direction(self):
+    return VectorPolar(1, self.__angle).to_cartesian()
 
   def body(self):
     return self.__body
@@ -84,6 +92,10 @@ class Entity:
     Return the extents of the entity
     '''
     raise Exception("Not implemented")
+
+  def __str__(self):
+    return '(type:{}, pos: ({}, {}), angle: {}, c: {})'.format(self.__entity_type, self.__position.x, self.__position.y, self.__angle, self.__confidence)
+
 
 class Environment:
   def __init__(self):
