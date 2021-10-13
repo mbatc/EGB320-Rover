@@ -1,4 +1,10 @@
-import cv2
+try:
+    import cv2
+    imported = True
+except (RuntimeError, ModuleNotFoundError):
+    cv2 = None
+    imported = False
+
 import numpy as np
 import random as rng
 import time

@@ -1,17 +1,15 @@
 # Import navigation code
+from subsystems.interop import SCS_ACTION, DetectedObject
+from subsystems.navigation import env_params
 from subsystems.navigation.env_params import ObjectType
+from subsystems.navigation.geometry import *
 from subsystems.navigation.navigation import Navigator
-from subsystems.navigation.geometry   import *
-from subsystems.interop               import SCS_ACTION, DetectedObject
-from subsystems.navigation            import env_params
-from subsystems.vrep.roverbot_lib     import *
+from subsystems.vrep.roverbot_lib import *
 
 # Some options for debugging
 print_timing  = False
 print_env     = True
 visualize_nav = True
-move_speed    = 0.015
-rotate_speed  = 0.2
 
 first_update = True
 
@@ -72,9 +70,7 @@ if __name__ == '__main__':
 
     if visualize_nav:
       nav_viz    = NavViz()
-
-    nav        = Navigator()
-    rover_pose = RoverPose(Vector(0, 0), 0)
+    nav = Navigator()
 
     roverBotSim.UpdateObjectPositions()
     roverBotSim.SetTargetVelocities(0, 0)
@@ -102,7 +98,7 @@ if __name__ == '__main__':
 
       if scs_action == SCS_ACTION.NONE:
         speed, ori_cor = nav.get_control_parameters()
-        roverBotSim.SetTargetVelocities(speed * move_speed, ori_cor * rotate_speed)
+        roverBotSim.SetTargetVelocities(speed, ori_cor)
       else:
         roverBotSim.SetTargetVelocities(0, 0)
         # if (scs_action == SCS_ACTION.FLIP_ROCK):

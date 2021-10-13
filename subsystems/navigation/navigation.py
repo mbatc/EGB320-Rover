@@ -24,10 +24,6 @@ class Navigator:
     }
 
     self.__has_sample         = False
-    self.__sample_to_collect  = False
-    self.__try_flip_rock      = False
-    self.__try_drop_sample    = False
-    self.__is_scs_active      = False
     self.__routine_delay      = 2
     self.__routine_end_time   = 0
     self.__last_routine_type  = RoutineType.NONE
@@ -178,8 +174,9 @@ class Navigator:
       self.__pose_estimator.add_sample(inputs, [rover_delta_pos, rover_delta_theta])
 
     pose = self.__pose_estimator.get_delta(inputs)
-    self.__rover.set_position(self.__rover.position() + pose[0])
-    self.__rover.set_angle(self.__rover.angle()       + pose[1])
+    if len(pose) > 0:
+      self.__rover.set_position(self.__rover.position() + pose[0])
+      self.__rover.set_angle(self.__rover.angle()       + pose[1])
 
     for entity in visible_entities:
       shifted = entity.position() + rover_delta_pos
@@ -267,10 +264,12 @@ class Navigator:
     '''
     Get the current control parameters for the navigation system.
     '''
-    if self.__is_scs_active or self.__current_routine == None:
-      return 0, 0
-    else:
-      return self.__current_routine.get_control_parameters()
+    params = 0, 0
+    if self.__current_routine is not None:
+      params = self.__current_routine.get_control_parameters()
+
+    # Scale control parameters based on navigation configuration options
+    return params[0] * config.MOVE_SPEED_FAST, params[1] * config.ROTATE_SPEED
 
   def collect_sample(self):
     '''
