@@ -1,11 +1,4 @@
-try:
-    import RPi.GPIO as GPIO
-    imported = True
-except (RuntimeError, ModuleNotFoundError):
-    GPIO = None
-    imported = False
-
-
+import RPi.GPIO as GPIO
 from time import sleep
 
 in1 = 24

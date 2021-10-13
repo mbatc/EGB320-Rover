@@ -1,6 +1,5 @@
 from subsystems.interop import SCS_ACTION
 from .env_params  import ObjectType
-from .env_params  import entity_info
 from .nav_routine import *
 from vector_2d    import Vector
 from .            import config
@@ -16,8 +15,9 @@ class CollectRoutine(Routine):
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
     if abs(self.__to_target) < config.COLLECT_DIST:
+      if not self.__started_scs:
+        self.navigator().collect_sample()
       self.__started_scs = True
-      self.navigator().collect_sample()
 
   def is_done(self):
     return self.__target is None or (self.__started_scs and self.navigator().get_scs_action() == SCS_ACTION.NONE)
@@ -51,8 +51,9 @@ class DropRoutine(Routine):
     cur_dir = VectorPolar(1, self.__rover.angle()).to_cartesian().unit()
 
     if vec2_dot(cur_dir.unit(), self.__to_target.unit()) > config.DROP_ORI_THRESHOLD:
+      if not self.__started_scs:
+        self.navigator().drop_sample()
       self.__started_scs = True
-      self.navigator().drop_sample()
 
   def is_done(self):
     return self.__target is None or (self.__started_scs and self.navigator().get_scs_action() == SCS_ACTION.NONE)
@@ -87,7 +88,8 @@ class FlipRoutine(Routine):
     self.__to_target = self.__target.position() - self.__rover.position()
 
     if abs(self.__to_target) < config.FLIP_DIST:
-      self.navigator().flip_rock()
+      if not self.__started_scs:
+        self.navigator().flip_rock()
       self.__started_scs = True
 
   def is_done(self):

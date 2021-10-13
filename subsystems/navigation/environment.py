@@ -12,13 +12,17 @@ def weighted_average(a, b, a_w, b_w):
 
 class Entity:
   def __init__(self, entity_type, position, angle, confidence, body:Body):
-    self.__entity_type = entity_type
-    self.__last_pos    = position
-    self.__position    = position
-    self.__angle       = angle
-    self.__confidence  = confidence
-    self.__body        = body
-    self.missing_time  = 0
+    self.__entity_type  = entity_type
+    self.__last_pos     = position
+    self.__position     = position
+    self.__angle        = angle
+    self.__confidence   = confidence
+    self.__body         = body
+    self.missing_time   = 0
+    self.__is_pos_valid = True
+
+  def invalidate_position(self):
+    self.__is_pos_valid = False
 
   def update_position(self, new_pos, new_angle, new_confidence):
     '''
@@ -29,6 +33,10 @@ class Entity:
     self.__position   = weighted_average(self.position(), new_pos, self.confidence(), new_confidence)
     self.__angle      = weighted_average(self.angle(), new_angle, self.confidence(), new_confidence)
     self.__confidence = (new_confidence + self.confidence()) * 0.5
+
+    if not self.__is_pos_valid:
+      self.__last_pos = self.__position
+      self.__is_pos_valid = True
 
   def last_position(self):
     return self.__last_pos

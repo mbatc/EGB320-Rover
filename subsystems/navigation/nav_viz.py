@@ -2,6 +2,8 @@
 from .env_params import ObjectType
 from .env_params import entity_info
 
+from vector_2d import Vector
+
 import glfw
 import OpenGL.GL as gl
 import imgui
@@ -25,6 +27,7 @@ class NavViz:
     scale = 1
 
     imgui.new_frame()
+    
     imgui.begin("Custom window", True)
 
     imgui.text('Velocity:         {}'.format(speed))
@@ -41,14 +44,19 @@ class NavViz:
       col_raw = entity_info[entity.type()].colour()
       col   = imgui.get_color_u32_rgba(col_raw[0], col_raw[1], col_raw[2], col_raw[3])
       white = imgui.get_color_u32_rgba(1, 1, 1, 1)
-      reg     = entity.size(False).x / 2
-      reg_inf = entity.size(True).x  / 2
-      draw_list.add_circle(entity.position().x * scale + wnd_center[0], scale * entity.position().y + wnd_center[1], reg * scale, col)
-      draw_list.add_circle(entity.position().x * scale + wnd_center[0], scale * entity.position().y + wnd_center[1], reg_inf * scale, white)
+      reg     = entity.size(False).x / 2 * scale
+      reg_inf = entity.size(True).x  / 2 * scale
+      pos = entity.position() * scale + Vector(wnd_center[0], wnd_center[1])
+      dir = entity.direction() * reg * scale
 
+      draw_list.add_circle(pos.x, pos.y, reg, col)
+      draw_list.add_circle(pos.x, pos.y, reg_inf, white)
+      draw_list.add_line(pos.x, pos.y, pos.x + dir.x, pos.y + dir.y, col)
     if (len(path) > 1):
       for i in range(len(path) - 1):
-        draw_list.add_line(path[i][0] * scale + wnd_center[0], path[i][1] * scale + wnd_center[1], path[i + 1][0] * scale + wnd_center[0], path[i + 1][1] * scale + wnd_center[1], imgui.get_color_u32_rgba(1, 1, 1, 1))
+        scaled_0 = path[i] * scale + Vector(wnd_center[0], wnd_center[1])
+        scaled_1 = path[i + 1] * scale + Vector(wnd_center[0], wnd_center[1])
+        draw_list.add_line(scaled_0.x, scaled_0.y, scaled_1.x, scaled_1.y, imgui.get_color_u32_rgba(1, 1, 1, 1))
 
     imgui.end()
 

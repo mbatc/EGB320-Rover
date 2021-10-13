@@ -1,9 +1,9 @@
 
 # Movement speeds
-MOVE_SPEED_FAST = 0.03
-MOVE_SPEED_MED  = 0.02
-MOVE_SPEED_SLOW = 0.01
-ROTATE_SPEED    = 0.2
+MOVE_SPEED_FAST = 0.015
+MOVE_SPEED_MED  = 0.01
+MOVE_SPEED_SLOW = 0.005
+ROTATE_SPEED    = 0.1
 
 # SCS Collection Distance
 COLLECT_DIST = 5 # cm from center of rover

@@ -257,6 +257,9 @@ def calculate_intersections(segment, circle):
   r = circle.radius()
   d = segment.end() - segment.start()
 
+  if vec2_mag_sqr(d) < 0.0001:
+    return None, None
+
   a = vec2_dot(d, d)
   b = 2 * vec2_dot(f, d)
   c = vec2_dot(f, f) - r * r

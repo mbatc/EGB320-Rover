@@ -34,10 +34,11 @@ class Navigator:
     self.__target_rock        = None
     self.__dt                 = 0
     self.__rover_start_pos    = Vector(0, 0)
-    self.__rover_delta_pos    = Vector(0, 0)
     self.__attached           = []
     self.__scs_action         = SCS_ACTION.NONE
     self.__pose_estimator     = PoseEstimator()
+
+    self.__lander.invalidate_position()
 
   def has_sample(self):
     return self.__has_sample
@@ -66,19 +67,11 @@ class Navigator:
   def update(self, visible_objects):
     update_time = time.time()
     self.__dt   = update_time - self.__last_update
-    # self.__rover_delta_pos = Vector(0, 0)
-    # self.__rover_start_pos = Vector(0, 0)
-    self.__rover_delta_pos = Vector(0, 0)
-    self.__rover_start_pos -= self.__rover_delta_pos
-
+    self.__last_update = update_time
     for entity in self.__attached:
       entity.set_position(self.__rover.position())
 
     self.update_environment(visible_objects)
-
-    # self.__rover.set_position(self.__rover_delta_pos)
-    # self.__rover.set_angle   (rover_angle)
-    # self.environment().bring_to_center(self.__rover)
 
     if self.__scs_action == SCS_ACTION.NONE:
       self.update_navigation_routine(self.__dt)
@@ -95,6 +88,14 @@ class Navigator:
           object.get_confidence()))
 
     self.estimate_rover_pose(visible_entities)
+
+    for object in visible_objects:
+      if object.distance() > 5:
+        self.environment().add_or_update_entity(
+          object.type(),
+          object.calculate_position(self.__rover),
+          object.calculate_angle(self.__rover),
+          object.get_confidence())
 
     sample_to_remove = []
     # If any samples are intersecting with the lander, remove them
@@ -147,10 +148,13 @@ class Navigator:
     rover_delta_theta = 0
 
     # Estimate rover position/orientation based on movement of visible entities
+    sample_count = 0
     for entity in visible_entities:
       last_position = entity.last_position() - self.__rover.position()
       new_position  = entity.position() - self.__rover.position()
       outer_arc     = Circle(Vector(0, 0), abs(last_position))
+      if outer_arc.radius() < 0.0001:
+        continue # It was previously on top of the rover, ignore this object
       pos_trace     = Line(new_position - rover_dir * outer_arc.radius(), new_position + rover_dir * outer_arc.radius())
       a, b = calculate_intersections(pos_trace, outer_arc)
       if a is None:
@@ -159,30 +163,32 @@ class Navigator:
         arc_pos = a
       else:
         arc_pos = a if abs(a - new_position) < abs(b - new_position) else b
-      arc = vec2_angle(arc_pos, new_position) * sign(vec2_cross(arc_pos, new_position))
+      if arc_pos is None:
+        continue
 
+      arc = vec2_angle(last_position, new_position) * sign(vec2_cross(last_position, new_position))
+      # print('arc: ' + str(degrees(arc)))
       rover_delta_pos   = rover_delta_pos   + (arc_pos - new_position)
       rover_delta_theta = rover_delta_theta - arc
+      sample_count = sample_count + 1
 
     vel, angular_vel = self.get_control_parameters()
     inputs = [vel, angular_vel]
 
-    if len(visible_entities) > 0:
+    if sample_count > 0:
       # Apply rover pose delta estimate
-      rover_delta_theta = rover_delta_theta / len(visible_entities)
-      rover_delta_pos   = rover_delta_pos   / len(visible_entities)
-      self.__pose_estimator.add_sample(inputs, [rover_delta_pos, rover_delta_theta])
-
-    pose = self.__pose_estimator.get_delta(inputs)
-    if len(pose) > 0:
-      self.__rover.set_position(self.__rover.position() + pose[0])
-      self.__rover.set_angle(self.__rover.angle()       + pose[1])
-
-    for entity in visible_entities:
-      shifted = entity.position() + rover_delta_pos
-      shifted = (shifted - self.__rover.position()).to_polar()
-      shifted = VectorPolar(shifted.module, shifted.angle + rover_delta_theta).to_cartesian()
-      entity.set_position(self.__rover.position() + shifted)
+      rover_delta_theta = rover_delta_theta / sample_count
+      rover_delta_pos   = rover_delta_pos   / sample_count
+      # print(degrees(rover_delta_theta))
+      # print(rover_delta_pos)
+      self.__rover.set_position(self.__rover.position() + rover_delta_pos)
+      self.__rover.set_angle(self.__rover.angle()       + rover_delta_theta)
+      self.__pose_estimator.add_sample(inputs, [rover_delta_pos, rover_delta_theta], self.__dt)
+    else:
+      pose = self.__pose_estimator.get_delta(inputs, self.__dt)
+      if len(pose) > 0:
+        self.__rover.set_position(self.__rover.position() + pose[0])
+        self.__rover.set_angle(self.__rover.angle()       + pose[1])
 
   def decide_action(self):
     '''
@@ -289,7 +295,11 @@ class Navigator:
     '''
     self.__scs_action = SCS_ACTION.DROP_SAMPLE
 
-  def complete_scs_action(self):
+  def complete_scs_action(self, success):
+    if self.__scs_action == SCS_ACTION.COLLECT_SAMPLE:
+      self.__has_sample = True
+    if self.__scs_action == SCS_ACTION.DROP_SAMPLE:
+      self.__has_sample = False
     self.__scs_action = SCS_ACTION.NONE
 
   def get_scs_action(self):

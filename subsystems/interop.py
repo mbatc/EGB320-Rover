@@ -1,5 +1,7 @@
 from vector_2d import *
 from enum import Enum
+from math import radians
+from math import degrees
 
 class SCS_ACTION(Enum):
   NONE           = 0,
@@ -23,7 +25,7 @@ class DetectedObject:
     self.__distance      = distance
     self.__angle         = angle
     self.__best_distance = 10
-    self.__best_heading  = 5
+    self.__best_heading  = radians(5)
     self.missing_time  = 0
 
   def type(self):
@@ -47,4 +49,4 @@ class DetectedObject:
     return dist_confidence * head_confidence
 
   def __str__(self):
-    return '(type:{}, angle: {}, dist: {})'.format(self.__type, self.__heading, self.__distance)
+    return '(type:{}, angle: {}d, dist: {})'.format(self.__type, degrees(self.__heading), self.__distance)
