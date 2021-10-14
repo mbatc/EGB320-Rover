@@ -22,33 +22,11 @@ class ObjectType(Enum):
 
 class DetectedObject:
   def __init__(self, type, heading, distance, angle):
-    self.__type          = type
-    self.__heading       = heading
-    self.__distance      = distance
-    self.__angle         = angle
-    self.__best_distance = 10
-    self.__best_heading  = radians(5)
-    self.missing_time  = 0
-
-  def type(self):
-    return self.__type
-
-  def distance(self):
-    return self.__distance
-
-  def calculate_heading(self, rover):
-    return rover.angle() + self.__heading
-
-  def calculate_angle(self, rover):
-    return rover.angle() + self.__angle
-
-  def calculate_position(self, rover):
-    return rover.position() + VectorPolar(self.distance(), self.calculate_heading(rover)).to_cartesian()
-
-  def get_confidence(self):
-    dist_confidence = max(0, min(1, self.__best_distance / self.__distance))
-    head_confidence = max(0, min(1, abs(self.__best_heading) / abs(self.__heading)))
-    return dist_confidence * head_confidence
+    self.type          = type
+    self.heading       = heading
+    self.distance      = distance
+    self.angle         = angle
+    self.last_detected = 0
 
   def __str__(self):
-    return '(type:{}, angle: {}d, dist: {})'.format(self.__type, degrees(self.__heading), self.__distance)
+    return '(type:{}, angle: {}d, dist: {})'.format(self.type, degrees(self.heading), self.distance)

@@ -1,20 +1,30 @@
 from enum import Enum
 
 class Command(Enum):
-  NONE           = 0,
-  HELP           = 1,
+  NONE                = 0,
+  HELP                = 1,
   COLLECT_SAMPLE_PREP = 2,
-  COLLECT_SAMPLE = 3,
-  DROP_SAMPLE    = 4,
-  FLIP_ROCK      = 5,
-  FLIP_ROCK_PREP = 6,
-  SET_MOTORS     = 7,
-  BEGIN_NAV      = 8,
-  CALIBRATE      = 9,
-  SHOW_DETECTED  = 10,
-  SET_SERVO_1    = 11,
-  SET_SERVO_2    = 12,
-  EXIT           = 13
+  COLLECT_SAMPLE      = 3,
+  DROP_SAMPLE         = 4,
+  FLIP_ROCK           = 5,
+  FLIP_ROCK_PREP      = 6,
+  SET_MOTORS          = 7,
+  BEGIN_NAV           = 8,
+  CALIBRATE           = 9,
+  SHOW_DETECTED       = 10,
+  SET_SERVO_1         = 11,
+  SET_SERVO_2         = 12,
+  NAV_SEARCH_SAMPLE   = 13,
+  NAV_SEARCH_ROCK     = 14,
+  NAV_SEARCH_LANDER   = 15,
+  NAV_GOTO_SAMPLE     = 16,
+  NAV_GOTO_ROCK       = 17,
+  NAV_GOTO_LANDER     = 18,
+  NAV_COLLECT_SAMPLE  = 19,
+  NAV_FLIP_ROCK       = 20,
+  NAV_DROP_SAMPLE     = 21,
+
+  EXIT                = 22
 
 class Input:
   def __init__(self, name, type):
@@ -59,6 +69,17 @@ class RoverCommandLine:
       'begin-nav': [ Command.BEGIN_NAV ],
       'calibrate': [ Command.CALIBRATE ],
       'show-detected': [Command.SHOW_DETECTED ],
+
+      'nav-search-sample': [ Command.NAV_SEARCH_SAMPLE ],
+      'nav-search-rock': [ Command.NAV_SEARCH_ROCK ],
+      'nav-search-lander': [ Command.NAV_SEARCH_LANDER ],
+      'nav-goto-sample': [ Command.NAV_GOTO_SAMPLE ],
+      'nav-goto-rock': [ Command.NAV_GOTO_ROCK ],
+      'nav-goto-lander': [ Command.NAV_GOTO_LANDER ],
+      'nav-collect-sample': [ Command.NAV_COLLECT_SAMPLE ],
+      'nav-flip-rock': [ Command.NAV_FLIP_ROCK ],
+      'nav-drop-sample': [ Command.NAV_DROP_SAMPLE ],
+
       'exit':      [ Command.EXIT ]
     }
 

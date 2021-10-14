@@ -52,7 +52,7 @@ class Controller:
     if has_mobility:
       mobility.shutdown()
 
-  def update(self, nav):
+  def update(self):
     '''
     Nothing to update for this controller
     '''
