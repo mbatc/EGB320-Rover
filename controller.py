@@ -103,7 +103,7 @@ class Controller:
     if not has_scs:
       print('Cannot Set to travel position. Collection system not available')
     else:
-      scs.TravelPosition_Open()
+      scs.SetToTravel()
     return True
 
   def flip_rock(self):

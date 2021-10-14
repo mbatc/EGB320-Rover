@@ -1,3 +1,4 @@
+from config_sim import AVOID_DISTANCE, AVOID_HEADING, AVOID_MOVE_TIME, MOVE_SPEED_MED
 from ..interop import SCS_ACTION, DetectedObject, ObjectType
 
 from vector_2d import *
@@ -10,22 +11,24 @@ import time
 cfg = None
 
 class State(Enum):
-  DISCOVER_SAMPLE_OR_ROCK = 0,
-  DISCOVER_SAMPLE         = 1,
-  DISCOVER_OBSTACLE       = 2,
-  DISCOVER_LANDER         = 3,
-  NAV_ROCK                = 4,
-  NAV_SAMPLE              = 5,
-  NAV_LANDER              = 7,
-  DROP_SAMPLE_LOOKAT      = 8,
-  DROP_SAMPLE_APPROACH    = 9,
-  DROP_SAMPLE             = 10,
-  FLIP_ROCK_LOOKAT        = 11,
-  FLIP_ROCK_APPROACH      = 12,
-  FLIP_ROCK               = 13,
-  COLLECT_SAMPLE_LOOKAT   = 14,
-  COLLECT_SAMPLE_APPROACH = 15,
-  COLLECT_SAMPLE          = 16,
+  DISCOVER_SAMPLE_OR_ROCK    = 0,
+  DISCOVER_SAMPLE            = 1,
+  DISCOVER_OBSTACLE          = 2,
+  DISCOVER_LANDER            = 3,
+  NAV_ROCK                   = 4,
+  NAV_SAMPLE                 = 5,
+  NAV_LANDER                 = 7,
+  NAV_AVOID_OBSTACLE_HEADING = 8,
+  NAV_AVOID_OBSTACLE_MOVE    = 9,
+  DROP_SAMPLE_LOOKAT         = 10,
+  DROP_SAMPLE_APPROACH       = 11,
+  DROP_SAMPLE                = 12,
+  FLIP_ROCK_LOOKAT           = 13,
+  FLIP_ROCK_APPROACH         = 14,
+  FLIP_ROCK                  = 15,
+  COLLECT_SAMPLE_LOOKAT      = 16,
+  COLLECT_SAMPLE_APPROACH    = 17,
+  COLLECT_SAMPLE             = 19,
 
 def sign(x): return -1 if x < 0 else 1 
 
@@ -137,21 +140,27 @@ class Map:
 class Navigator:
   def __init__(self, controller):
     global cfg
-    
+
     cfg = controller.config()
 
     self.map                = Map()
     self.target_dist        = 0
     self.target_head        = 0
     self.target_head        = 0
+    self.keep_target        = False
     self.target_object      = None
     self.target_object_type = None
+    self.obstacle           = None
+    self.avoid_sign         = 1
+    self.avoid_amount       = 0
     self.move_speed         = cfg.MOVE_SPEED_MED
     self.rotate_speed       = cfg.ROTATE_SPEED_FAST
     self.state              = None
+    self.prev_state         = None
     self.state_start_time   = 0
     self.state_first_update = False
     self.controller         = controller
+    self.state_before_avoid = None
     controller.travel_position_open()
     self.set_state(State.DISCOVER_SAMPLE_OR_ROCK)
 
@@ -179,6 +188,10 @@ class Navigator:
       next_state = self.nav_sample()
     if self.state == State.NAV_LANDER:
       next_state = self.nav_lander()
+    if self.state == State.NAV_AVOID_OBSTACLE_HEADING:
+      next_state = self.nav_avoid_obstacle_heading()
+    if self.state == State.NAV_AVOID_OBSTACLE_MOVE:
+      next_state = self.nav_avoid_obstacle_move()
     if self.state == State.FLIP_ROCK_LOOKAT:
       next_state = self.flip_rock_lookat()
     if self.state == State.FLIP_ROCK_APPROACH:
@@ -229,7 +242,9 @@ class Navigator:
 
     print('State Changed > {}'.format(new_state))
     self.state = new_state
-    self.clear_target()
+    if not self.keep_target:
+      self.clear_target()
+    self.keep_target = False
     self.state_start_time   = time.time()
     self.state_first_update = True
     return True
@@ -291,6 +306,10 @@ class Navigator:
     if self.target_dist < cfg.NAV_DIST_SAMPLE:
       return State.COLLECT_SAMPLE_LOOKAT
 
+    if self.should_avoid_obstacle():
+      self.keep_target = True
+      return State.NAV_AVOID_OBSTACLE_HEADING
+
     return None
 
   def nav_rock(self):
@@ -309,6 +328,10 @@ class Navigator:
     if self.target_dist < cfg.NAV_DIST_ROCK:
       return State.FLIP_ROCK_LOOKAT
 
+    if self.should_avoid_obstacle():
+      self.keep_target = True
+      return State.NAV_AVOID_OBSTACLE_HEADING
+
     return None
 
   def nav_lander(self):
@@ -323,6 +346,26 @@ class Navigator:
     if self.target_dist < cfg.NAV_DIST_LANDER:
       return State.DROP_SAMPLE_LOOKAT
 
+    if self.should_avoid_obstacle():
+      self.keep_target = True
+      return State.NAV_AVOID_OBSTACLE_HEADING
+
+    return None
+
+  def nav_avoid_obstacle_heading(self):
+    self.target_head = self.avoid_sign
+    self.target_dist = 0
+    if not self.should_avoid_obstacle(self):
+      self.keep_target = True
+      return State.NAV_AVOID_OBSTACLE_MOVE
+    return None
+  
+  def nav_avoid_obstacle_move(self):
+    self.move_speed  = cfg.MOVE_SPEED_MED
+    self.target_dist = 1
+    if self.this_state_duration() > cfg.AVOID_MOVE_TIME:
+      return self.state_before_avoid
+    self.state_before_avoid = None
     return None
 
 
@@ -445,3 +488,28 @@ class Navigator:
     most_recent = self.map.most_recent_of_type(type)
     if most_recent is not None:
       self.target_object = most_recent
+
+  def update_avoid_obstacle(self):
+    o = self.map.closest_of_type(ObjectType.OBSTACLE)
+    if o is None:
+      return False
+    self.obstacle = o
+
+  def should_avoid_obstacle(self):
+    return False
+    # o = self.map.closest_of_type(ObjectType.OBSTACLE)
+    # if o is None:
+    #   return False
+    # if o.distance > cfg.AVOID_DISTANCE[ObjectType.OBSTACLE]:
+    #   return False
+# 
+    # diff = self.target_head - o.heading
+    # if abs(diff) > cfg.AVOID_HEADING[ObjectType.OBSTACLE]:
+    #   return False
+# 
+    # if self.state_before_avoid is None:
+    #   self.state_before_avoid = self.state
+    # self.avoid_amount = cfg.AVOID_HEADING[ObjectType.OBSTACLE] - abs(diff)
+    # self.avoid_sign   = sign(diff)
+    # self.obstacle     = o
+    # return True

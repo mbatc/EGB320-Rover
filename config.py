@@ -1,5 +1,7 @@
 import math
 
+from subsystems.interop import ObjectType
+
 DIST_THRESH      = 10
 HEAD_THRESH      = math.radians(5)
 PRUNE_TIME       = 0.75
@@ -27,3 +29,20 @@ APPROACH_TIME_SAMPLE = 4
 APPROACH_TIME_LANDER = 6
 
 DISC_TIMEOUT_SAMPLE  = 10 
+
+AVOID_MOVE_TIME = 3
+
+AVOID_DISTANCE = {}
+AVOID_HEADING  = {}
+
+AVOID_DISTANCE[ObjectType.OBSTACLE] = 30
+AVOID_HEADING [ObjectType.OBSTACLE] = math.radians(10)
+
+AVOID_DISTANCE[ObjectType.ROCK]     = 25
+AVOID_HEADING [ObjectType.ROCK]     = math.radians(10)
+
+AVOID_DISTANCE[ObjectType.SAMPLE]   = 10
+AVOID_HEADING [ObjectType.SAMPLE]   = math.radians(5)
+
+AVOID_DISTANCE[ObjectType.LANDER]   = 30
+AVOID_HEADING [ObjectType.LANDER]   = math.radians(15)
