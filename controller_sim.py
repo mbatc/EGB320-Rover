@@ -6,6 +6,7 @@ from subsystems.navigation.navigation import Navigator
 from subsystems.vrep.roverbot_lib import *
 
 import time
+import config_sim as cfg
 
 sceneParameters = SceneParameters()
 robotParameters = RobotParameters()
@@ -34,6 +35,9 @@ class Controller:
     self.sim.UpdateObjectPositions()
     self.vel = 0
     self.ang = 0
+
+  def config(self):
+    return cfg
 
   def update(self):
     _, _, _, _ = self.sim.UpdateObjectPositions()

@@ -1,6 +1,8 @@
 
 from subsystems import interop
 
+import config as cfg
+
 has_mobility = True
 has_scs      = True
 has_vision   = True
@@ -57,6 +59,9 @@ class Controller:
     Nothing to update for this controller
     '''
     pass
+
+  def config(self):
+    return cfg
 
   def get_detected_objects(self):
     if has_vision and self.detector is not None:
