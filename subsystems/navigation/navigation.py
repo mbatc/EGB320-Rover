@@ -28,7 +28,7 @@ class Navigator:
     self.__routine_end_time   = 0
     self.__last_routine_type  = RoutineType.NONE
     self.__rover              = self.__environment.add_entity(ObjectType.ROVER, Vector(0, 0), 0, 1)
-    self.__lander             = self.__environment.add_entity(ObjectType.LANDER, Vector(0, 0), 0, 1)
+    # self.__lander             = self.__environment.add_entity(ObjectType.LANDER, Vector(0, 0), 0, 1)
     self.__last_update        = time.time()
     self.__target_sample      = None
     self.__target_rock        = None
@@ -38,7 +38,7 @@ class Navigator:
     self.__scs_action         = SCS_ACTION.NONE
     self.__pose_estimator     = PoseEstimator()
 
-    self.__lander.invalidate_position()
+    # self.__lander.invalidate_position()
 
   def has_sample(self):
     return self.__has_sample
@@ -107,7 +107,7 @@ class Navigator:
       self.environment().remove(sample)
 
     # Combine overlapping entities
-    # self.environment().combine_overlapping()
+    self.environment().combine_overlapping()
 
     # Remove 'ghost' entities
     rover_pos = self.__rover.position()
@@ -166,11 +166,14 @@ class Navigator:
       if arc_pos is None:
         continue
 
-      arc = vec2_angle(last_position, new_position) * sign(vec2_cross(last_position, new_position))
-      # print('arc: ' + str(degrees(arc)))
-      rover_delta_pos   = rover_delta_pos   + (arc_pos - new_position)
+      shift = (arc_pos - last_position)
+      after_move      = last_position   - shift
+      arc = vec2_angle(after_move, new_position) * sign(vec2_cross(after_move, new_position))
+      print('arc: {}'.format(degrees(arc)))
+
+      rover_delta_pos   = rover_delta_pos + shift
       rover_delta_theta = rover_delta_theta - arc
-      sample_count = sample_count + 1
+      sample_count      = sample_count + 1
 
     vel, angular_vel = self.get_control_parameters()
     inputs = [vel, angular_vel]
@@ -184,12 +187,11 @@ class Navigator:
       pose = [ abs(rover_delta_pos) / self.__dt, rover_delta_theta / self.__dt]
       self.__rover.set_position(self.__rover.position() + rover_delta_pos)
       self.__rover.set_angle(self.__rover.angle()       + rover_delta_theta)
-      print('vel: {}\t {}', pose[0], pose[1])
+      print('pose: {} -> {}'.format(inputs, pose))
       self.__pose_estimator.add_sample(inputs, pose)
     else:
-      pose = self.__pose_estimator.get_delta(inputs)
+      pose = self.__pose_estimator.get_pose(inputs)
       if len(pose) > 0:
-        print('model vel: {}\t {}', pose[0], pose[1])
         self.__rover.set_position(self.__rover.position() + self.__rover.direction() * pose[0] * self.__dt)
         self.__rover.set_angle(self.__rover.angle()       + pose[1] * self.__dt)
 

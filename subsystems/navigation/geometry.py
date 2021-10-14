@@ -93,6 +93,9 @@ class Rect(Body):
     self.__min = vec2_min(body.min(), self.__min)
     self.__max = vec2_max(body.max(), self.__max)
 
+  def is_smallest(self):
+    return self.__min.x > self.__max.x or self.__min.y > self.__max.y
+
   @staticmethod
   def smallest():
     rect     = Rect(Vector(), Vector())

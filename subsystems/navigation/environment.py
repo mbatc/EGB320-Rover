@@ -219,9 +219,12 @@ class Environment:
       # TODO: Might be worthwhile also removing rotation.
       other.set_position(other.position() - offset)
 
-  def extents(self):
+  def extents(self, entity_types=None):
     extents = Rect.smallest()
     for entity in self.entities:
+      if entity_types is not None:
+        if entity.type() not in entity_types:
+          continue
       extents.grow_to_contain(entity.extents())
     return extents
 

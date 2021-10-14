@@ -7,6 +7,7 @@ from .nav_routine  import *
 from copy          import *
 
 import math
+import time
 import random
 
 rock_goal_dist   = 3
@@ -130,6 +131,8 @@ class SearchRoutine(Routine):
     self.goal_dist   = 5
     self.finish_dist = 5
     self.prev_length = 100000
+    self.last_update = 0
+    self.refresh_period = 1 # seconds
 
   def get_obstacle_types(self):
     return []
@@ -155,6 +158,10 @@ class SearchRoutine(Routine):
     recalulate_path = False
     # delta_pos = self.navigator().get_rover_delta_position()
     # self.path = [ pos - delta_pos for pos in self.path ]
+
+    stale_time = time.time() - self.last_update
+    if stale_time > self.refresh_period:
+      recalulate_path = True
 
     path_node_index = 0
     for pos in self.path:
@@ -198,6 +205,8 @@ class SearchRoutine(Routine):
     else:
       self.path = []
 
+    self.last_update = time.time()
+
   def get_path(self):
     return self.path
 
@@ -215,11 +224,14 @@ class SearchRoutine(Routine):
     return direction_to_control_param(target_dir, self.navigator().get_rover_entity())
 
   def is_done(self):
+    if self.target_pos is None:
+      return False
     rover = self.navigator().get_rover_entity()
     return abs(self.target_pos - rover.position()) < self.finish_dist
 
 class ExploreRoutine(SearchRoutine):
   def __init__(self, navigator):
+    self.target_angle = 0
     super().__init__(navigator)
 
   def get_obstacle_types(self):
@@ -230,17 +242,24 @@ class ExploreRoutine(SearchRoutine):
 
   def on_start(self):
     rover_copy = deepcopy(self.navigator().get_rover_entity())
-    env_extents = self.navigator().environment().extents()
-    env_size    = abs(env_extents.size()) / 2
-    while self.target_entity is None:    
-      angle       = random.random() * 2 - 1
-      distance    = random.random() * env_size
-      target_pos  = env_extents.center() + VectorPolar(distance, angle * math.pi).to_cartesian()
+    env_extents = self.navigator().environment().extents([ObjectType.ROCK, ObjectType.OBSTACLE, ObjectType.SAMPLE, ObjectType.LANDER])
+    env_size    = abs(env_extents.size()) * 0.75
+    self.target_angle = math.pi * (random.random() * 2 - 1)
+    if env_extents.is_smallest():
+      target_pos = rover_copy.position()
+    else:
+      while self.target_entity is None:    
+        angle       = random.random() * 2 - 1
+        distance    = random.random() * env_size
+        print('angle: {}'.format(angle))
+        target_pos  = env_extents.center() + VectorPolar(distance, angle * math.pi).to_cartesian()
 
-      rover_copy.set_position(target_pos)
-      if self.env.find_first_colliding(rover_copy) is None:
-        self.target_entity = self.env.add_entity(ObjectType.EXPLORE, target_pos, 0, 1)
+        rover_copy.set_position(target_pos)
+        intersect = self.env.find_first_colliding(rover_copy)
+        if intersect is None or intersect is self.navigator().get_rover_entity():
+          break
 
+    self.target_entity = self.env.add_entity(ObjectType.EXPLORE, target_pos, 0, 1)
     self.goal_dist   = entity_info[ObjectType.ROVER].size() / 2
     self.finish_dist = self.goal_dist
 
@@ -256,7 +275,19 @@ class ExploreRoutine(SearchRoutine):
     if self.env.has_entities(ObjectType.SAMPLE):
       return True
 
-    return self.env.find_first_colliding(rover) is not None
+    if self.env.find_first_colliding(rover) is not None:
+      return True
+      
+    if super().is_done():
+      return abs(self.navigator().get_rover_entity().get_angle() - self.target_angle) < math.radians(5)
+
+    return False
+
+  def get_control_parameters(self):
+    if super().is_done():
+      return 0, 0.5 if self.navigator().get_rover_entity().get_angle() < self.target_angle else -0.5
+    else:
+      return super().get_control_parameters()
 
   def on_complete(self):
     self.env.remove(self.target_entity)
@@ -280,6 +311,9 @@ class LanderSearchRoutine(SearchRoutine):
   def on_update(self, dt):
     if self.target_entity is None:
       self.target_pos = self.navigator().rover_start_position()
+    # Try find the lander
+    rover_pos = self.navigator().get_rover_entity().position()
+    self.target_entity, _ = self.env.find_closest(ObjectType.LANDER, rover_pos)
     return super().on_update(dt)
 
   def get_type(self):
@@ -299,15 +333,12 @@ class SampleSearchRoutine(SearchRoutine):
     return True
 
   def on_start(self):
-    rover_pos             = self.navigator().get_rover_entity().position()
-    self.target_entity, _ = self.env.find_closest(ObjectType.SAMPLE, rover_pos)
     self.goal_dist        = (entity_info[ObjectType.ROVER].size() + entity_info[ObjectType.SAMPLE].size()) / 2 + sample_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
-    if self.target_entity is not None and self.target_entity not in self.env:
-      # The sample was pruned from the environment - try find the next closest sample
-      self.target_entity, _ = self.env.find_closest(ObjectType.SAMPLE, self.target_entity.position())
+    rover_pos             = self.navigator().get_rover_entity().position()
+    self.target_entity, _ = self.env.find_closest(ObjectType.SAMPLE, rover_pos)
 
     if self.target_entity is not None:
       super().on_update(dt)
@@ -338,14 +369,12 @@ class RockSearchRoutine(SearchRoutine):
 
   def on_start(self):
     rover_pos             = self.navigator().get_rover_entity().position()
-    self.target_entity, _ = self.env.find_closest(ObjectType.ROCK, rover_pos)
     self.goal_dist        = (entity_info[ObjectType.ROVER].size() + entity_info[ObjectType.ROCK].size()) / 2 + rock_goal_dist
     self.finish_dist      = self.goal_dist
 
   def on_update(self, dt):
-    if self.target_entity is not None and self.target_entity not in self.env:
-      # The sample was pruned from the environment - try find the next closest sample
-      self.target_entity, _ = self.env.find_closest(ObjectType.ROCK, self.target_entity.position())
+    rover_pos             = self.navigator().get_rover_entity().position()
+    self.target_entity, _ = self.env.find_closest(ObjectType.ROCK, rover_pos)
 
     if self.target_entity is not None:
       super().on_update(dt)
