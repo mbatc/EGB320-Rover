@@ -502,11 +502,11 @@ class Navigator:
     #   return False
     # if o.distance > cfg.AVOID_DISTANCE[ObjectType.OBSTACLE]:
     #   return False
-# 
+    # 
     # diff = self.target_head - o.heading
     # if abs(diff) > cfg.AVOID_HEADING[ObjectType.OBSTACLE]:
     #   return False
-# 
+    # 
     # if self.state_before_avoid is None:
     #   self.state_before_avoid = self.state
     # self.avoid_amount = cfg.AVOID_HEADING[ObjectType.OBSTACLE] - abs(diff)

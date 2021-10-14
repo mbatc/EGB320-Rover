@@ -50,13 +50,6 @@ def run(controller):
   cmdLine   = cmdline.RoverCommandLine()
   navigator = nav.Navigator(controller)
 
-  try:
-    print('Beginning navigation. Press CTRL+C to stop')
-    navigate(navigator)
-  except KeyboardInterrupt as e:
-    print('Ending navigation')
-    controller.set_motors(0, 0)
-
   while True:
     cmd_id, args = cmdLine.get_command()
     if cmd_id == cmdline.Command.COLLECT_SAMPLE_PREP:
