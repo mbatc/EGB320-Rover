@@ -67,23 +67,12 @@ def parse_args():
   print_detected = args.verbose_detect >= 1
   print_timing   = args.verbose_timing >= 1
 
-
-if __name__ == "__main__":
-  parse_args()
+def run(controller):
+  print('Rover Command Line Interface.\nType \'help\' for a list of commands.')
+  
   cmdLine   = cmdline.RoverCommandLine()
   navigator = nav.Navigator()
 
-  # Import either physical or simulated controller
-  if simulated:
-    print('Importing Controller (Simulated)')
-    from controller_sim import Controller
-    controller = Controller('127.0.0.1', visualize_nav)
-  else:
-    print('Importing Controller')
-    from controller import Controller
-    controller = Controller()
-
-  print('Rover Command Line Interface.\nType \'help\' for a list of commands.')
   while True:
     cmd_id, args = cmdLine.get_command()
     if cmd_id == cmdline.Command.COLLECT_SAMPLE:
@@ -112,6 +101,27 @@ if __name__ == "__main__":
       cmdLine.print_help()
     elif cmd_id == cmdline.Command.EXIT:
       break
+  pass
 
-  print('Shutting down...')
-  controller.set_motors(0, 0)
+if __name__ == "__main__":
+  parse_args()
+
+  # Import either physical or simulated controller
+  if simulated:
+    print('Importing Controller (Simulated)')
+    from controller_sim import Controller
+    controller = Controller('127.0.0.1', visualize_nav)
+  else:
+    print('Importing Controller')
+    from controller import Controller
+    controller = Controller()
+
+  try:
+    run(controller)
+  except Exception as e:
+    print('An unhandled exception occured: {}'.format(e))
+    raise # re-throw the exception
+  finally:
+    # Always stop the motors
+    print('Shutting down...')
+    controller.set_motors(0, 0)

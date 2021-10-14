@@ -99,7 +99,7 @@ class Entity:
     '''
     Return the extents of the entity
     '''
-    raise Exception("Not implemented")
+    return self.transformed_body().extents()
 
   def __str__(self):
     return '(type:{}, pos: ({}, {}), angle: {}, c: {})'.format(self.__entity_type, self.__position.x, self.__position.y, self.__angle, self.__confidence)
@@ -218,6 +218,12 @@ class Environment:
       # TODO: Perhaps adjust the confidence when we shift the entities.
       # TODO: Might be worthwhile also removing rotation.
       other.set_position(other.position() - offset)
+
+  def extents(self):
+    extents = Rect.smallest()
+    for entity in self.entities:
+      extents.grow_to_contain(entity.extents())
+    return extents
 
   def find_closest(self, entity_type, position):
     '''

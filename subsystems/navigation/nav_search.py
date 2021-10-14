@@ -230,10 +230,12 @@ class ExploreRoutine(SearchRoutine):
 
   def on_start(self):
     rover_copy = deepcopy(self.navigator().get_rover_entity())
+    env_extents = self.navigator().environment().extents()
+    env_size    = abs(env_extents.size()) / 2
     while self.target_entity is None:    
       angle       = random.random() * 2 - 1
-      distance    = random.random() * 80
-      target_pos  = self.navigator().rover_start_position() + VectorPolar(distance, angle * math.pi).to_cartesian()
+      distance    = random.random() * env_size
+      target_pos  = env_extents.center() + VectorPolar(distance, angle * math.pi).to_cartesian()
 
       rover_copy.set_position(target_pos)
       if self.env.find_first_colliding(rover_copy) is None:

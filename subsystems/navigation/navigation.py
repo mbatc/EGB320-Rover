@@ -107,7 +107,7 @@ class Navigator:
       self.environment().remove(sample)
 
     # Combine overlapping entities
-    self.environment().combine_overlapping()
+    # self.environment().combine_overlapping()
 
     # Remove 'ghost' entities
     rover_pos = self.__rover.position()
@@ -181,14 +181,17 @@ class Navigator:
       rover_delta_pos   = rover_delta_pos   / sample_count
       # print(degrees(rover_delta_theta))
       # print(rover_delta_pos)
+      pose = [ abs(rover_delta_pos) / self.__dt, rover_delta_theta / self.__dt]
       self.__rover.set_position(self.__rover.position() + rover_delta_pos)
       self.__rover.set_angle(self.__rover.angle()       + rover_delta_theta)
-      self.__pose_estimator.add_sample(inputs, [rover_delta_pos, rover_delta_theta], self.__dt)
+      print('vel: {}\t {}', pose[0], pose[1])
+      self.__pose_estimator.add_sample(inputs, pose)
     else:
-      pose = self.__pose_estimator.get_delta(inputs, self.__dt)
+      pose = self.__pose_estimator.get_delta(inputs)
       if len(pose) > 0:
-        self.__rover.set_position(self.__rover.position() + pose[0])
-        self.__rover.set_angle(self.__rover.angle()       + pose[1])
+        print('model vel: {}\t {}', pose[0], pose[1])
+        self.__rover.set_position(self.__rover.position() + self.__rover.direction() * pose[0] * self.__dt)
+        self.__rover.set_angle(self.__rover.angle()       + pose[1] * self.__dt)
 
   def decide_action(self):
     '''
