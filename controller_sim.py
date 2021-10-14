@@ -71,7 +71,7 @@ class Controller:
     if (action == SCS_ACTION.COLLECT_SAMPLE):
       return self.collect_sample()
     time.sleep(1)
-    return False
+    return True
 
   def flip_rock(self):
     print('flip_rock() not supported by simulation.')

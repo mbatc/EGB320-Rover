@@ -47,11 +47,10 @@ class CollectRoutine(Routine):
 class DropRoutine(Routine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.__target    = None
     self.__rover     = self.navigator().get_rover_entity()
+    self.__target    = None
     self.__to_target = Vector()
     self.__started_scs = False
-    self.__direction_valid = False
     
     self.find_target()
     self.update_target_dist()
@@ -92,10 +91,8 @@ class DropRoutine(Routine):
 class FlipRoutine(Routine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.__target    = self.navigator().get_target_rock()
     self.__rover     = self.navigator().get_rover_entity()
     self.__to_target = Vector()
-    self.__started_scs = False
 
     self.find_target()
     self.update_target_dist()

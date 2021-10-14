@@ -23,6 +23,7 @@ class Navigator:
       RoutineType.FLIP_ROCK:      FlipRoutine,
     }
 
+    self.params = 0,0
     self.__has_sample         = False
     self.__routine_delay      = 2
     self.__routine_end_time   = 0
@@ -195,9 +196,9 @@ class Navigator:
       else:
         return RoutineType.SEARCH_LANDER
     else:
-      if last_routine == RoutineType.SEARCH_SAMPLE and self.get_target_sample() != None:
+      if last_routine == RoutineType.SEARCH_SAMPLE:
         return RoutineType.COLLECT_SAMPLE
-      elif last_routine == RoutineType.SEARCH_ROCK and self.get_target_rock() != None:
+      elif last_routine == RoutineType.SEARCH_ROCK:
         return RoutineType.FLIP_ROCK
 
       if last_routine == RoutineType.FLIP_ROCK:
@@ -263,9 +264,9 @@ class Navigator:
     '''
     Get the current control parameters for the navigation system.
     '''
-    params = 0, 0
+    self.params = 0, 0
     if self.__current_routine is not None:
-      params = self.__current_routine.get_control_parameters()
+      self.params = self.__current_routine.get_control_parameters()
 
     # Scale control parameters based on navigation configuration options
     return params[0] * config.MOVE_SPEED_FAST, params[1] * config.ROTATE_SPEED

@@ -382,9 +382,6 @@ class RockSearchRoutine(SearchRoutine):
   def is_done(self):
     return self.target_entity is None or super().is_done()
 
-  def on_complete(self):
-    self.navigator().set_target_rock(self.target_entity)
-
   def get_type(self):
     '''
     Get the navigation routine type.
