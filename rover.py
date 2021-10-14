@@ -45,6 +45,20 @@ def navigate(navigator, controller):
       print('Nav Update Time: {}'.format(nav_update_time))
       print('Full Update time: {}'.format(time.time() - update_start - nav_update_time))
 
+def show_detected(navigator, controller):
+  while True:
+    controller.update(navigator)
+    objects = controller.get_detected_objects()
+    if len(objects) == 0:
+      continue
+
+    print('[')
+    if objects is not None:
+      for obj in objects:
+        print('  {}'.format(obj))
+    print(']')
+
+
 def parse_args():
   global simulated
   global print_env
@@ -99,6 +113,12 @@ def run(controller):
         controller.set_motors(0, 0)
     elif cmd_id == cmdline.Command.HELP:
       cmdLine.print_help()
+    elif cmd_id == cmdline.Command.SHOW_DETECTED:
+      try:
+        print('showing cv2 detected objects. Press CTRL+C to stop')
+        show_detected(navigator, controller)
+      except KeyboardInterrupt as e:
+        print('Ending display detected...')
     elif cmd_id == cmdline.Command.EXIT:
       break
   pass

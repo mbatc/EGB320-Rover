@@ -230,5 +230,7 @@ def ObjectDetection(cap):
             cv2.imshow('Frame_Detections', img)
             # cv2.imshow('Frame_Threshold_edges_blue',  blue_edges)
             # cv2.imshow('Frame_Threshold_edges_orange',  orange_edges)
-            return objects
+
+    cv2.waitKey(1)
+    return objects
             

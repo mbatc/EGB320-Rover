@@ -9,7 +9,8 @@ class Command(Enum):
   SET_MOTORS     = 5,
   BEGIN_NAV      = 6,
   CALIBRATE      = 7,
-  EXIT           = 8
+  SHOW_DETECTED  = 8,
+  EXIT           = 9
 
 class Input:
   def __init__(self, name, type):
@@ -43,6 +44,7 @@ class RoverCommandLine:
       ],
       'begin-nav': [ Command.BEGIN_NAV ],
       'calibrate': [ Command.CALIBRATE ],
+      'show-detected': [Command.SHOW_DETECTED ],
       'exit':      [ Command.EXIT ]
     }
 
