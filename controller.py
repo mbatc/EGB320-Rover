@@ -71,13 +71,28 @@ class Controller:
       print('Cannot Set Motors. Mobility system not available.')
 
   def perform_action(self, action):
+    if not has_scs:
+      print('Cannot perform action {}. Collection system not available.'.format(action))
+      return True
+    
+    if (action == interop.SCS_ACTION.FLIP_ROCK_PREP):
+      scs.FlipRock_Prepare()
     if (action == interop.SCS_ACTION.FLIP_ROCK):
-      return self.flip_rock()
+      scs.FlipRock()
     if (action == interop.SCS_ACTION.DROP_SAMPLE):
-      return self.drop_sample()
+      scs.DropSample()
+    if (action == interop.SCS_ACTION.COLLECT_SAMPLE_PREP):
+      scs.CollectSample_Prepare()
     if (action == interop.SCS_ACTION.COLLECT_SAMPLE):
-      return self.collect_sample()
-    return False
+      scs.CollectSample()
+    return True
+
+  def set_servo(self, id, angle):
+    if has_scs:
+      if id == 0:
+        scs.Set_angle_1(angle)
+      if id == 1:
+        scs.Set_angle_2(angle)
 
   def flip_rock(self):
     if not has_scs:

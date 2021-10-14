@@ -7,6 +7,8 @@ from subsystems.navigation.navigation import Navigator
 from subsystems.vrep.roverbot_lib import *
 from subsystems.navigation.nav_viz import NavViz
 
+import time
+
 sceneParameters = SceneParameters()
 robotParameters = RobotParameters()
 robotParameters.driveType = 'differential'
@@ -68,6 +70,7 @@ class Controller:
       return self.drop_sample()
     if (action == SCS_ACTION.COLLECT_SAMPLE):
       return self.collect_sample()
+    time.sleep(1)
     return False
 
   def flip_rock(self):

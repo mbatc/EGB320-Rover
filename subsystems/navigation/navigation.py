@@ -43,18 +43,6 @@ class Navigator:
   def has_sample(self):
     return self.__has_sample
 
-  def get_target_sample(self):
-    return self.__target_sample
-
-  def set_target_sample(self, sample):
-    self.__target_sample = sample
-
-  def get_target_rock(self):
-    return self.__target_rock
-
-  def set_target_rock(self, sample):
-    self.__target_rock = sample
-
   def attach_sample(self, entity):
     self.__attached.append(entity)
 
@@ -282,23 +270,11 @@ class Navigator:
     # Scale control parameters based on navigation configuration options
     return params[0] * config.MOVE_SPEED_FAST, params[1] * config.ROTATE_SPEED
 
-  def collect_sample(self):
-    '''
-    Set a flag indicating that we should attempt to collect a sample.
-    '''
-    self.__scs_action = SCS_ACTION.COLLECT_SAMPLE
+  def set_scs_action(self, action):
+    self.__scs_action = action
 
-  def flip_rock(self):
-    '''
-    Set a flag indicating that we should attempt to flip a rock.
-    '''
-    self.__scs_action = SCS_ACTION.FLIP_ROCK
-    
-  def drop_sample(self):
-    '''
-    Set a flag indicating that we should attempt to drop a sample.
-    '''
-    self.__scs_action = SCS_ACTION.DROP_SAMPLE
+  def get_scs_action(self):
+    return self.__scs_action
 
   def complete_scs_action(self, success):
     if self.__scs_action == SCS_ACTION.COLLECT_SAMPLE:
@@ -306,6 +282,3 @@ class Navigator:
     if self.__scs_action == SCS_ACTION.DROP_SAMPLE:
       self.__has_sample = False
     self.__scs_action = SCS_ACTION.NONE
-
-  def get_scs_action(self):
-    return self.__scs_action

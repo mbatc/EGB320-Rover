@@ -3,14 +3,18 @@ from enum import Enum
 class Command(Enum):
   NONE           = 0,
   HELP           = 1,
-  COLLECT_SAMPLE = 2,
-  DROP_SAMPLE    = 3,
-  FLIP_ROCK      = 4,
-  SET_MOTORS     = 5,
-  BEGIN_NAV      = 6,
-  CALIBRATE      = 7,
-  SHOW_DETECTED  = 8,
-  EXIT           = 9
+  COLLECT_SAMPLE_PREP = 2,
+  COLLECT_SAMPLE = 3,
+  DROP_SAMPLE    = 4,
+  FLIP_ROCK      = 5,
+  FLIP_ROCK_PREP = 6,
+  SET_MOTORS     = 7,
+  BEGIN_NAV      = 8,
+  CALIBRATE      = 9,
+  SHOW_DETECTED  = 10,
+  SET_SERVO_1    = 11,
+  SET_SERVO_2    = 12,
+  EXIT           = 13
 
 class Input:
   def __init__(self, name, type):
@@ -34,9 +38,19 @@ class RoverCommandLine:
     # Define commands for the console interface
     self.commands = {
       'help':    [ Command.HELP ],
+      'collect-prep': [Command.COLLECT_SAMPLE_PREP ],
       'collect': [ Command.COLLECT_SAMPLE ],
       'drop':    [ Command.DROP_SAMPLE ],
       'flip':    [ Command.FLIP_ROCK ],
+      'flip-prep': [Command.FLIP_ROCK_PREP ],
+      'set-servo-1': [
+        Command.SET_SERVO_1,
+        Input('angle', int)
+      ],
+      'set-servo-2': [
+        Command.SET_SERVO_2,
+        Input('angle', int)
+      ],
       'set-velocity': [
         Command.SET_MOTORS,
         Input('linear',  float),

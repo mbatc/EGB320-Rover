@@ -89,18 +89,28 @@ def run(controller):
 
   while True:
     cmd_id, args = cmdLine.get_command()
-    if cmd_id == cmdline.Command.COLLECT_SAMPLE:
+    if cmd_id == cmdline.Command.COLLECT_SAMPLE_PREP:
+      print('Preparing to Collecting sample')
+      controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
+    elif cmd_id == cmdline.Command.COLLECT_SAMPLE:
       print('Collecting sample')
-      controller.collect_sample()
+      controller.perform_action(SCS_ACTION.COLLECT_SAMPLE)
     elif cmd_id == cmdline.Command.DROP_SAMPLE:
       print('Dropping sample')
-      controller.drop_sample()
+      controller.perform_action(SCS_ACTION.DROP_SAMPLE)
+    elif cmd_id == cmdline.Command.FLIP_ROCK_PREP:
+      print('Preparing to Flip rock')
+      controller.perform_action(SCS_ACTION.FLIP_ROCK_PREP)
     elif cmd_id == cmdline.Command.FLIP_ROCK:
-      print('Flip rock')
-      controller.flip_rock()
+      print('Flipping rock')
+      controller.perform_action(SCS_ACTION.FLIP_ROCK)
     elif cmd_id == cmdline.Command.SET_MOTORS:
       print('Setting motor speeds')
       controller.set_motors(args[0], args[1])
+    elif cmd_id == cmdline.Command.SET_SERVO_1:
+      controller.set_servo(0, args[0])
+    elif cmd_id == cmdline.Command.SET_SERVO_2:
+      controller.set_servo(1, args[0])
     elif cmd_id == cmdline.Command.CALIBRATE:
       print('Calibrating...')
       controller.calibrate()

@@ -4,10 +4,12 @@ from math import radians
 from math import degrees
 
 class SCS_ACTION(Enum):
-  NONE           = 0,
-  DROP_SAMPLE    = 1,
-  FLIP_ROCK      = 2,
-  COLLECT_SAMPLE = 3
+  NONE                = 0,
+  DROP_SAMPLE         = 1,
+  FLIP_ROCK_PREP      = 2,
+  FLIP_ROCK           = 3,
+  COLLECT_SAMPLE_PREP = 4,
+  COLLECT_SAMPLE      = 5,
 
 class ObjectType(Enum):
   ROCK     = 'rock',

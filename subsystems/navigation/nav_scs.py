@@ -7,20 +7,32 @@ from .            import config
 class CollectRoutine(Routine):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.__target    = self.navigator().get_target_sample()
+    self.__target    = None
     self.__rover     = self.navigator().get_rover_entity()
     self.__to_target = Vector()
-    self.__started_scs = False
+    
+    self.find_target()
+    self.update_target_dist()
+    
+    # Prepare the SCS system for sample collection
+    self.navigator().set_scs_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
+
+  def find_target(self):
+    self.__target, _ = self.navigator().environment().find_closest(ObjectType.SAMPLE, self.__rover.position())
+  
+  def update_target_dist(self):
+    self.__to_target = self.__target.position() - self.__rover.position()
 
   def on_update(self, dt):
-    self.__to_target = self.__target.position() - self.__rover.position()
-    if abs(self.__to_target) < config.COLLECT_DIST:
-      if not self.__started_scs:
-        self.navigator().collect_sample()
-      self.__started_scs = True
+    self.update_target_dist()
 
   def is_done(self):
-    return self.__target is None or (self.__started_scs and self.navigator().get_scs_action() == SCS_ACTION.NONE)
+    # Navigate until we are close enough to the target
+    return abs(self.__to_target) < config.COLLECT_DIST
+
+  def on_complete(self):
+    # Try collect the sample
+    self.navigator().set_scs_action(SCS_ACTION.COLLECT_SAMPLE)
 
   def get_control_parameters(self):
     speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
@@ -40,11 +52,16 @@ class DropRoutine(Routine):
     self.__to_target = Vector()
     self.__started_scs = False
     self.__direction_valid = False
-
-  def on_start(self):
-    # Get the closest sample to the rover
+    
+    self.find_target()
+    self.update_target_dist()
+    
+  def find_target(self):
     self.__target, _ = self.navigator().environment().find_closest(ObjectType.LANDER, self.__rover.position())
-
+  
+  def update_target_dist(self):
+    self.__to_target = self.__target.position() - self.__rover.position()
+    
   def on_update(self, dt):
     self.__to_target = self.__target.position() - self.__rover.position()
     self.__direction_valid = True
@@ -56,14 +73,14 @@ class DropRoutine(Routine):
       self.__started_scs = True
 
   def is_done(self):
-    return self.__target is None or (self.__started_scs and self.navigator().get_scs_action() == SCS_ACTION.NONE)
+    return abs(self.__to_target) < config.DROP_DIST
 
   def get_control_parameters(self):
-    if not self.__direction_valid or self.__started_scs:
-      return 0, 0
-    else:
-      speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
-      return speed * 0.2, ori
+    speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+    return 0.2 * speed, ori
+
+  def on_complete(self):
+    self.navigator().set_scs_action(SCS_ACTION.DROP_SAMPLE)
 
   def get_type(self):
     '''
@@ -80,27 +97,26 @@ class FlipRoutine(Routine):
     self.__to_target = Vector()
     self.__started_scs = False
 
-  def on_start(self):
-    # Get the closest sample to the rover
+    self.find_target()
+    self.update_target_dist()
+    
+    self.navigator().set_scs_action(SCS_ACTION.FLIP_ROCK_PREP)
+
+  def find_target(self):
     self.__target, _ = self.navigator().environment().find_closest(ObjectType.ROCK, self.__rover.position())
 
-  def on_update(self, dt):
+  def update_target_dist(self):
     self.__to_target = self.__target.position() - self.__rover.position()
 
-    if abs(self.__to_target) < config.FLIP_DIST:
-      if not self.__started_scs:
-        self.navigator().flip_rock()
-      self.__started_scs = True
+  def on_update(self, dt):
+    self.update_target_dist()
 
   def is_done(self):
-    return self.__target is None or (self.__started_scs and self.navigator().get_scs_action() == SCS_ACTION.NONE)
+    return abs(self.__to_target) < config.FLIP_DIST
 
   def get_control_parameters(self):
-    if self.__started_scs:
-      return 0, 0
-    else:
-      speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
-      return 0.2 * speed, ori
+    speed, ori = direction_to_control_param(self.__to_target, self.navigator().get_rover_entity())
+    return 0.2 * speed, ori
 
   def get_type(self):
     '''
