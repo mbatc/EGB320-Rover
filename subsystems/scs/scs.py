@@ -10,14 +10,15 @@ claw_pin = 25
 lift_pin = 27
 
 # Set angles 1
-level_2= 95 #collection system parrelell with ground
+level_2= 110 #collection system parrelell with ground
+level_rock_2= 100 #collection system parrelell with ground
 up_2 = 200 #collection system in full up position
-up_2_travel = 120 #collection system in travel hieght
+up_2_travel = 130 #collection system in travel hieght
     
 # Set angle 2
 close_1 = 170 #SC fully closed
 open_1 = 100 #SC fully open 
-travel_1 = 140
+travel_1 = 100
   
 def initialize():
     global servo1
@@ -52,37 +53,45 @@ def Set_angle_2(angle_2):
     GPIO.output(claw_pin, False)
 
 #performance functions
+def SetToTravel():
+    Set_angle_2(up_2_travel)
+    time.sleep(0.7)
+    Set_angle_1(travel_1)
+    time.sleep(0.7)
+    
+    
+
 def CollectSample_Prepare():
     Set_angle_2(level_2)
-    time.sleep(2)
+    time.sleep(0.7)
     Set_angle_1(open_1)
 
 def CollectSample():
     Set_angle_1(close_1)
-    time.sleep(2)
+    time.sleep(0.7)
     Set_angle_2(up_2_travel)
-    time.sleep(2)
+    time.sleep(0.7)
 
 def DropSample():
     Set_angle_2(level_2)
-    time.sleep(2)
+    time.sleep(0.7)
     Set_angle_1(open_1)
-    time.sleep(2)
+    time.sleep(0.7)
     Set_angle_2(up_2_travel)
-    time.sleep(2)
+    time.sleep(0.7)
     Set_angle_1(close_1)
-    time.sleep(2)
+    time.sleep(0.7)
 
 def FlipRock_Prepare():
     Set_angle_1(close_1)
-    time.sleep(1)
-    Set_angle_2(level_2)
+    time.sleep(0.7)
+    Set_angle_2(level_rock_2)
 
 def FlipRock():
     Set_angle_2(up_2)
-    time.sleep(4)
+    time.sleep(0.7)
     Set_angle_2(up_2_travel)
-    time.sleep(2)
+    time.sleep(0.7)
 
 def shutdown():
     servo1.stop()

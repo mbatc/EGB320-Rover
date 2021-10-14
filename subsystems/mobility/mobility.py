@@ -47,7 +47,7 @@ def update(vel, ang):
         
         if vel!=0:
             if ang>0:
-                print("turning right")
+                # print("turning right")
                 GPIO.output(in1,GPIO.HIGH)
                 GPIO.output(in2,GPIO.LOW)
                 GPIO.output(in3,GPIO.HIGH)
@@ -56,7 +56,7 @@ def update(vel, ang):
                 pb.ChangeDutyCycle(x)
 
             elif ang<0:
-                print("turning left")
+                # print("turning left")
                 GPIO.output(in1,GPIO.HIGH)
                 GPIO.output(in2,GPIO.LOW)
                 GPIO.output(in3,GPIO.HIGH)
@@ -65,7 +65,7 @@ def update(vel, ang):
                 pb.ChangeDutyCycle(100 - vel)
 
             elif ang==0:
-                print("forwards")
+                # print("forwards")
                 GPIO.output(in1,GPIO.HIGH)
                 GPIO.output(in2,GPIO.LOW)
                 GPIO.output(in3,GPIO.HIGH)
@@ -75,7 +75,7 @@ def update(vel, ang):
 
         elif vel==0:
             if ang<0:
-                print("turn on spot left")
+                # print("turn on spot left")
                 GPIO.output(in1,GPIO.HIGH)
                 GPIO.output(in2,GPIO.LOW)
                 GPIO.output(in3,GPIO.HIGH)
@@ -84,7 +84,7 @@ def update(vel, ang):
                 pb.ChangeDutyCycle(100)
 
             elif ang>0:
-                print("turn on spot right")
+                # print("turn on spot right")
                 GPIO.output(in1,GPIO.HIGH)
                 GPIO.output(in2,GPIO.LOW)
                 GPIO.output(in3,GPIO.HIGH)
@@ -93,7 +93,7 @@ def update(vel, ang):
                 pa.ChangeDutyCycle(100)
 
             elif ang==0:
-                print("stop")
+                # print("stop")
                 GPIO.output(in1,GPIO.HIGH)
                 GPIO.output(in2,GPIO.LOW)
                 GPIO.output(in3,GPIO.HIGH)

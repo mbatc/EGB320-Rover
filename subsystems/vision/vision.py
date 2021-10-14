@@ -25,7 +25,12 @@ def ObjectDetection(cap):
             # image = cv2.imread("image.png")
             # hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+            scale = 0.5
+            
+            frame = cv2.resize(frame, (int(frame.shape[1] * scale), int(frame.shape[0] * scale)))
             frame = cv2.flip(frame,0)
+            capwidth = frame.shape[1]
+            # print(frame.shape)
             hsv_stream = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             
 
@@ -87,10 +92,10 @@ def ObjectDetection(cap):
                     
                     cv2.putText(canny_edge_green,('Oriantation: '+OriantationStr),(xtext+w+10,y-10),0,0.3,(150,255,0))
                     cv2.putText(canny_edge_green,('Green, Height:'+str(h)),(xtext+w+10,y+h),0,0.3,(150,255,0))
-                    D_DetermanentG = 8000
+                    D_DetermanentG = scale * 8000
                     Distance = round((D_DetermanentG/h),2)
                     cv2.putText(canny_edge_green,('Distance'+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
-                    capwidth  = cap.get(3)
+                    #capwidth  = cap.get(3)
                     Bearing = (((x+(w/2))-(capwidth/2))/(7.25))
                     Bearing1 = round(Bearing,2)
                     cv2.putText(canny_edge_green,('Bearing'+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
@@ -123,10 +128,10 @@ def ObjectDetection(cap):
                     else:
                         OriantationStr = str(Oriantation)
                     cv2.putText(canny_edge_blue,('Oriantation: '+OriantationStr),(xtext+w+10,y-10),0,0.3,(150,255,0))
-                    D_DetermanentB = 4200
+                    D_DetermanentB = scale * 4200
                     Distance = round((D_DetermanentB/h),2)
                     cv2.putText(canny_edge_blue,('Distance: '+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
-                    capwidth  = cap.get(3)
+                    # capwidth  = cap.get(3)
                     Bearing = (((x+(w/2))-(capwidth/2))/(7.25))
                     Bearing1 = round(Bearing,2)
                     cv2.putText(canny_edge_blue,('Bearing: '+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
@@ -151,10 +156,10 @@ def ObjectDetection(cap):
                          xtext = x 
                      
                      cv2.putText(canny_edge_orange,('Orange, Height:'+str(h)),(xtext+w+10,y+h),0,0.3,(150,255,0))
-                     D_DetermanentO = 2200
+                     D_DetermanentO = scale * 2200
                      Distance = round((D_DetermanentO/h),2)
                      cv2.putText(canny_edge_blue,('Distance'+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
-                     capwidth  = cap.get(3)
+                     # capwidth  = cap.get(3)
                      Bearing = ((x+(w/2))-(capwidth/2))/(7.25)
                      Bearing1 = round(Bearing,2)
                      cv2.putText(canny_edge_orange,('Bearing'+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
@@ -178,10 +183,10 @@ def ObjectDetection(cap):
                          xtext = x 
                      
                      cv2.putText(canny_edge_yellow,('Yellow, Height:'+str(h)),(xtext+w+10,y+h),0,0.3,(150,255,0))
-                     D_DetermanentY = 4000
+                     D_DetermanentY = scale * 4000
                      Distance = int(round((D_DetermanentY/h),2))
                      cv2.putText(canny_edge_yellow,('Distance'+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
-                     capwidth  = cap.get(3)
+                     #capwidth  = cap.get(3)
                      Bearing = ((x+(w/2))-(capwidth/2))/(7.25)
                      Bearing1 = round(Bearing,2)
                      cv2.putText(canny_edge_yellow,('Bearing'+str(Bearing1)),(x+w+10,y-30),0,0.3,(150,255,0))
@@ -206,7 +211,7 @@ def ObjectDetection(cap):
                          xtext = x   
                      #print(str(cv2.contourArea(c))
                      cv2.putText(canny_edge_black,('Black, Height:'+str(h)),(xtext+w+10,y+h),0,0.3,(150,255,0))
-                     D_DetermanentO = 2200
+                     D_DetermanentO = scale * 2200
                      Distance = int(round((D_DetermanentO/h),2))
                      cv2.putText(canny_edge_black,('Distance'+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
             

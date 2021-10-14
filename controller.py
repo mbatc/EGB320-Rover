@@ -94,6 +94,13 @@ class Controller:
       if id == 1:
         scs.Set_angle_2(angle)
 
+  def travel_position_open(self):
+    if not has_scs:
+      print('Cannot Set to travel position. Collection system not available')
+    else:
+      scs.TravelPosition_Open()
+    return True
+
   def flip_rock(self):
     if not has_scs:
       print('Cannot Flip Rock. Collection system not available')
