@@ -58,7 +58,7 @@ class Controller:
 
   def set_motors(self, vel, ang):
     if has_mobility:
-      mobility.update(vel, ang)
+      mobility.update(vel * 100, ang * 100)
     else:
       print('Cannot Set Motors. Mobility system not available.')
 

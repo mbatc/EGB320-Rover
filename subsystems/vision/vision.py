@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import random as rng
 import time
+import math
 
 from ..interop import ObjectType
 from ..interop import DetectedObject
@@ -94,7 +95,7 @@ def ObjectDetection(cap):
                     Bearing1 = round(Bearing,2)
                     cv2.putText(canny_edge_green,('Bearing'+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
 
-                    objects.append(DetectedObject(ObjectType.OBSTACLE,Bearing1,Distance,Oriantation)) #0 placeholder for orientation
+                    objects.append(DetectedObject(ObjectType.OBSTACLE,math.radians(Bearing1),Distance,Oriantation)) #0 placeholder for orientation
 
 
             #blue
@@ -124,13 +125,13 @@ def ObjectDetection(cap):
                     cv2.putText(canny_edge_blue,('Oriantation: '+OriantationStr),(xtext+w+10,y-10),0,0.3,(150,255,0))
                     D_DetermanentB = 4200
                     Distance = round((D_DetermanentB/h),2)
-                    cv2.putText(canny_edge_blue,('Distance'+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
+                    cv2.putText(canny_edge_blue,('Distance: '+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
                     capwidth  = cap.get(3)
                     Bearing = (((x+(w/2))-(capwidth/2))/(7.25))
                     Bearing1 = round(Bearing,2)
-                    cv2.putText(canny_edge_blue,('Bearing'+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
+                    cv2.putText(canny_edge_blue,('Bearing: '+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
 
-                    objects.append(DetectedObject(ObjectType.ROCK,Bearing1,Distance,Oriantation)) #0 placeholder for orientation
+                    objects.append(DetectedObject(ObjectType.ROCK,math.radians(Bearing1),Distance,Oriantation)) #0 placeholder for orientation
 
 
             #Orange
@@ -158,7 +159,7 @@ def ObjectDetection(cap):
                      Bearing1 = round(Bearing,2)
                      cv2.putText(canny_edge_orange,('Bearing'+str(Bearing1)),(xtext+w+10,y-30),0,0.3,(150,255,0))
 
-                     objects.append(DetectedObject(ObjectType.SAMPLE,Bearing1,Distance,0)) #0 placeholder for orientation
+                     objects.append(DetectedObject(ObjectType.SAMPLE,math.radians(Bearing1),Distance,0)) #0 placeholder for orientation
             
             #Yellow
             canny_edge_yellow = cv2.blur(hsv_thresholded_yellow, (10,10))
@@ -185,7 +186,7 @@ def ObjectDetection(cap):
                      Bearing1 = round(Bearing,2)
                      cv2.putText(canny_edge_yellow,('Bearing'+str(Bearing1)),(x+w+10,y-30),0,0.3,(150,255,0))
 
-                     objects.append(DetectedObject(ObjectType.LANDER,Bearing1,Distance,0)) #0 placeholder for orientation
+                     objects.append(DetectedObject(ObjectType.LANDER,math.radians(Bearing1),Distance,0)) #0 placeholder for orientation
 
 
             #Black
@@ -209,7 +210,7 @@ def ObjectDetection(cap):
                      Distance = int(round((D_DetermanentO/h),2))
                      cv2.putText(canny_edge_black,('Distance'+str(Distance)),(xtext+w+10,y-20),0,0.3,(150,255,0))
             
-                     objects.append(DetectedObject("Wall",Bearing1,Distance,0)) #0 placeholder for orientation
+                     objects.append(DetectedObject("Wall",math.radians(Bearing1),Distance,0)) #0 placeholder for orientation
 
 
             if ((time.time()-newtime)!=0):
