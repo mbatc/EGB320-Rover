@@ -34,6 +34,7 @@ class Controller:
       print('Failed to initializing mobility system. Perhaps a module is missing')
 
     if has_scs:
+      scs.initialize()
       print('Initializing collection system')
     else:
       print('Failed to initializing collection system. Perhaps a module is missing')
@@ -43,6 +44,13 @@ class Controller:
       print('Initializing vision system')
     else:
       print('Failed to vision mobility system. Perhaps a module is missing')
+
+  def __del__(self):
+    if has_scs:
+      scs.shutdown()
+
+    if has_mobility:
+      mobility.shutdown()
 
   def update(self, nav):
     '''
@@ -58,7 +66,7 @@ class Controller:
 
   def set_motors(self, vel, ang):
     if has_mobility:
-      mobility.update(vel * 100, ang * 100)
+      mobility.update(vel * 100, -ang * 100)
     else:
       print('Cannot Set Motors. Mobility system not available.')
 
@@ -75,21 +83,21 @@ class Controller:
     if not has_scs:
       print('Cannot Flip Rock. Collection system not available')
     else:
-      print('flip_rock() is not implemented. Assumed successful')
+      scs.FlipRock()
     return True
 
   def drop_sample(self):
     if not has_scs:
       print('Cannot Drop Sample. Collection system not available')
     else:
-      print('drop_sample() is not implemented. Assumed successful')
+      scs.DropSample()
     return True
 
   def collect_sample(self):
     if not has_scs:
       print('Cannot Collect Sample. Collection system not available')
     else:
-      print('collect_sample() is not implemented. Assumed successful')
+      scs.CollectSample()
     return True
 
   def calibrate(self):

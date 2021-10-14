@@ -11,6 +11,9 @@ enb = 26
 pa = None
 pb = None
 
+def shutdown():
+    GPIO.cleanup()
+
 def initialze():
     global pa
     global pb
