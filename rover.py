@@ -100,16 +100,24 @@ def run(controller):
       except KeyboardInterrupt as e:
         print('Ending display detected...')
     elif cmd_id == cmdline.Command.NAV_SEARCH_SAMPLE:
-      pass
+      navigate(navigator, nav.State.DISCOVER_SAMPLE)
     elif cmd_id == cmdline.Command.NAV_SEARCH_ROCK:
+      navigate(navigator, nav.State.DISCOVER_SAMPLE_OR_ROCK)
     elif cmd_id == cmdline.Command.NAV_SEARCH_LANDER:
+      navigate(navigator, nav.State.DISCOVER_LANDER)
     elif cmd_id == cmdline.Command.NAV_GOTO_SAMPLE:
+      navigate(navigator, nav.State.NAV_SAMPLE)
     elif cmd_id == cmdline.Command.NAV_GOTO_ROCK:
+      navigate(navigator, nav.State.NAV_ROCK)
     elif cmd_id == cmdline.Command.NAV_GOTO_LANDER:
+      navigate(navigator, nav.State.NAV_LANDER)
     elif cmd_id == cmdline.Command.NAV_COLLECT_SAMPLE:
+      navigate(navigator, nav.State.NAV_SAMPLE, nav.State.DISCOVER_LANDER)
     elif cmd_id == cmdline.Command.NAV_FLIP_ROCK:
+      navigate(navigator, nav.State.NAV_ROCK, nav.State.DISCOVER_SAMPLE)
     elif cmd_id == cmdline.Command.NAV_DROP_SAMPLE:
-    elif cmd_id == cmdline.Command.cmdline.Command.EXIT:
+      navigate(navigator, nav.State.NAV_LANDER, nav.State.DISCOVER_SAMPLE_OR_ROCK)
+    elif cmd_id == cmdline.Command.EXIT:
       break
   pass
 

@@ -63,6 +63,10 @@ class Controller:
     time.sleep(1)
     return True
 
+  def travel_position_open(self):
+    print('travel_position_open() not supported by simulation.')
+    return True
+
   def flip_rock(self):
     print('flip_rock() not supported by simulation.')
     return True

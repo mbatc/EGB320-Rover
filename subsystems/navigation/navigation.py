@@ -23,7 +23,7 @@ MOVE_SPEED_MED   = 0.0075
 MOVE_SPEED_SLOW  = 0.0035
 
 NAV_DIST_ROCK   = 25
-NAV_DIST_SAMPLE = 20
+NAV_DIST_SAMPLE = 17
 NAV_DIST_LANDER = 30
 
 LOOKAT_THRESH_SAMPLE = math.radians(1.5)
@@ -31,8 +31,10 @@ LOOKAT_THRESH_ROCK   = math.radians(1.5)
 LOOKAT_THRESH_LANDER = math.radians(1.5)
 
 APPROACH_TIME_ROCK   = 2.5
-APPROACH_TIME_SAMPLE = 2
-APPROACH_TIME_LANDER = 3
+APPROACH_TIME_SAMPLE = 4
+APPROACH_TIME_LANDER = 6
+
+DISC_TIMEOUT_SAMPLE  = 10 
 
 class State(Enum):
   DISCOVER_SAMPLE_OR_ROCK = 0,
@@ -173,7 +175,7 @@ class Navigator:
     self.state_start_time   = 0
     self.state_first_update = False
     self.controller         = controller
-
+    controller.travel_position_open()
     self.set_state(State.DISCOVER_SAMPLE_OR_ROCK)
 
 
@@ -240,8 +242,9 @@ class Navigator:
   # STATE MANAGEMENT
 
   def clear_target(self):
-    self.target_dist = 0
-    self.target_head = 0
+    self.target_dist   = 0
+    self.target_head   = 0
+    self.target_object = None
 
   def set_state(self, new_state):
     if new_state == None:
@@ -275,6 +278,10 @@ class Navigator:
     self.rotate_speed = ROTATE_SPEED_FAST
     if self.navigate_discover_type(ObjectType.SAMPLE):
       return State.NAV_SAMPLE
+
+    if self.this_state_duration() > DISC_TIMEOUT_SAMPLE:
+      return State.DISCOVER_SAMPLE_OR_ROCK
+
     return None
 
   def discover_lander(self):
@@ -299,7 +306,7 @@ class Navigator:
     self.move_speed = MOVE_SPEED_FAST
     self.update_target_object_by_type(ObjectType.SAMPLE)
     if self.target_object is None:
-      return State.DISCOVER_SAMPLE_OR_ROCK
+      return State.DISCOVER_SAMPLE
 
     self.target_dist = self.target_object.distance
     self.target_head = self.target_object.heading
@@ -314,6 +321,10 @@ class Navigator:
     self.update_target_object_by_type(ObjectType.ROCK)
     if self.target_object is None:
       return State.DISCOVER_SAMPLE_OR_ROCK
+
+    # If we detected a sample
+    if len(self.map.objects(ObjectType.SAMPLE)) > 0:
+      return State.DISCOVER_SAMPLE
 
     self.target_dist = self.target_object.distance
     self.target_head = self.target_object.heading
@@ -342,6 +353,8 @@ class Navigator:
   # COLLECT SAMPLE STATES
 
   def collect_sample_lookat(self):
+    self.rotate_speed = ROTATE_SPEED_SLOW
+    self.rotate_speed = MOVE_SPEED_SLOW
     if self.state_first_update:
       self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
 
@@ -358,7 +371,8 @@ class Navigator:
     return None
 
   def collect_sample_approach(self):
-    self.move_speed  = MOVE_SPEED_SLOW
+    self.rotate_speed = ROTATE_SPEED_SLOW
+    self.rotate_speed = MOVE_SPEED_SLOW
     self.target_head = 0
     self.target_dist = 1
 
@@ -447,6 +461,10 @@ class Navigator:
     return False
 
   def update_target_object_by_type(self, type=None):
+    if type is not None and self.target_object is not None:
+      if self.target_object.type != type:
+        self.target_object.type = None
+
     most_recent = self.map.most_recent_of_type(type)
     if most_recent is not None:
       self.target_object = most_recent
