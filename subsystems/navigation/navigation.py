@@ -1,38 +1,19 @@
-from config_sim import AVOID_DISTANCE, AVOID_HEADING, AVOID_MOVE_TIME, MOVE_SPEED_MED
+from types import ClassMethodDescriptorType
 from ..interop import SCS_ACTION, DetectedObject, ObjectType
 
 from vector_2d import *
 
 from enum import Enum
 
+import queue
 import math
 import time
 
 cfg = None
 
-class State(Enum):
-  DISCOVER_SAMPLE_OR_ROCK    = 0,
-  DISCOVER_SAMPLE            = 1,
-  DISCOVER_OBSTACLE          = 2,
-  DISCOVER_LANDER            = 3,
-  NAV_ROCK                   = 4,
-  NAV_SAMPLE                 = 5,
-  NAV_LANDER                 = 7,
-  NAV_AVOID_OBSTACLE_HEADING = 8,
-  NAV_AVOID_OBSTACLE_MOVE    = 9,
-  DROP_SAMPLE_LOOKAT         = 10,
-  DROP_SAMPLE_APPROACH       = 11,
-  DROP_SAMPLE                = 12,
-  FLIP_ROCK_LOOKAT           = 13,
-  FLIP_ROCK_APPROACH         = 14,
-  FLIP_ROCK                  = 15,
-  COLLECT_SAMPLE_LOOKAT      = 16,
-  COLLECT_SAMPLE_APPROACH    = 17,
-  COLLECT_SAMPLE             = 19,
-
 def sign(x): return -1 if x < 0 else 1 
 
-class Map:
+class ObjectMap:
   def __init__(self):
     self.__objects = []
     self.__groups  = {}
@@ -51,11 +32,11 @@ class Map:
 
   @staticmethod
   def cartesian(a):
-    return Map.polar(a).to_cartesian()
+    return ObjectMap.polar(a).to_cartesian()
 
   @staticmethod
   def distance(a, b):
-    return abs(Map.cartesian(a) - Map.cartesian(b))
+    return abs(ObjectMap.cartesian(a) - ObjectMap.cartesian(b))
 
   def objects(self, type=None):
     if type is None:
@@ -67,7 +48,7 @@ class Map:
 
   def find(self, query):
     for o in self.objects(query.type):
-      if Map.is_same(o, query):
+      if ObjectMap.is_same(o, query):
         return o
     return None
 
@@ -75,7 +56,7 @@ class Map:
     min_dist = 1000000
     closest  = None
     for o in self.objects(query.type):
-      dist = Map.distance(o, query)
+      dist = ObjectMap.distance(o, query)
       if dist < min_dist:
         closest = o
         min_dist = dist
@@ -137,33 +118,396 @@ class Map:
     for o in to_remove:
       self.rem(o)
 
+class StateTransition(Enum):
+  RECORD_STATE = 0,
+  CLEAR_STACK  = 1,
+  PREVIOUS     = 2,
+
+class State:
+  def __init__(self, navigator):
+    self.navigator          = navigator
+    self.controller         = navigator.controller
+    self.map                = navigator.map
+    self.move_speed         = cfg.MOVE_SPEED_MED
+    self.rotate_speed       = cfg.ROTATE_SPEED_MED
+    self.target_dist        = 0
+    self.target_head        = 0
+    self.state_start_time   = 0
+    self.state_first_update = True
+
+  def is_first_update(self):
+    return self.state_first_update
+
+  def state_duration(self):
+    return time.time() - self.state_start_time
+
+  def start(self):
+    self.state_start_time = time.time()
+
+  def avoid_obstacles(self, object_type):
+    # for self.map.get_objects():
+
+    pass
+
+# ///////////////////////////////////////////////////////////
+# DISCOVER OBJECT STATES
+
+class DiscoverBase(State):
+  def __init__(self, navigator):
+    super().__init__(navigator)
+
+    self.travel = False
+    self.rotate = True
+    self.active_time = time.time()
+
+  def has_discovered(self, object_type):
+    if len(self.map.objects(object_type)) > 0:
+      return True
+
+  def discover(self):
+    if self.is_first_update():
+      self.active_time = time.time()
+
+    if self.rotate:
+      self.target_dist = 0
+      self.target_head = math.radians(1)
+
+      if time.time() - self.active_time > cfg.MIN_ROTATE_TIME:
+        closest = self.map.closest_of_type(None)
+        if closest is None or closest.distance > 40:
+          self.rotate = False
+          self.active_time = time.time()
+          print('Discover travelling')
+    else:
+      self.target_head = 0
+      self.target_dist = 1
+
+      switch_state = time.time() - self.active_time > cfg.MAX_TRAVEL_TIME
+      closest = self.map.closest_of_type(None)
+      switch_state = switch_state or (closest is None or closest.distance < 20)
+
+      if switch_state:
+        self.rotate = True
+        self.active_time = time.time()
+        print('Discover rotating')
+
+class DiscoverSampleOrRock(DiscoverBase):
+  def __init__(self, navigator):
+    super().__init__(navigator)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+
+  def update(self):
+    # Check finish conditions
+    if self.has_discovered(ObjectType.SAMPLE):
+      return NavSample(self.navigator), None
+    if self.has_discovered(ObjectType.ROCK):
+      return NavRock(self.navigator), None
+    # Update discovery routine
+    self.discover()
+    return None, None
+
+class DiscoverSample(DiscoverBase):
+  def __init__(self, navigator):
+    super().__init__(navigator)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+
+  def update(self):
+    # Check finish conditions
+    if self.has_discovered(ObjectType.SAMPLE):
+      return NavSample(self.navigator), None
+    if self.state_duration() > cfg.DISC_TIMEOUT_SAMPLE:
+      return DiscoverSampleOrRock(self.navigator), None
+    # Update discovery routine
+    self.discover()
+    return None, None
+
+class DiscoverObstacle(DiscoverBase):
+  def __init__(self, navigator):
+    super().__init__(navigator)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+
+  def update(self):
+    # Check finish conditions
+    if self.has_discovered(ObjectType.OBSTACLE):
+      return NavLander(self.navigator), None
+    # Update discovery routine
+    self.discover()
+    return None, None
+    
+class DiscoverLander(DiscoverBase):
+  def __init__(self, navigator):
+    super().__init__(navigator)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+
+  def update(self):
+    # Check finish conditions
+    if self.has_discovered(ObjectType.LANDER):
+      return NavLander(self.navigator), None
+    # Update discovery routine
+    self.discover()
+    return None, None
+
+# ///////////////////////////////////////////////////////////
+# NAVIGATE STATES
+
+class ObjectTargetState(State):
+  def __init__(self, navigator, target_type):
+    super().__init__(navigator)
+    self.target_object = None
+    self.target_type   = target_type
+
+  def update_target(self):
+    if self.target_type is not None and self.target_object is not None:
+      if self.target_object.type != self.target_type:
+        self.target_object.type = None
+
+    most_recent = self.map.most_recent_of_type(self.target_type)
+    if most_recent is not None:
+      self.target_object = most_recent
+
+class NavRock(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.ROCK)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+
+  def update(self):
+    self.update_target()
+
+    if self.target_object is None:
+      return DiscoverSampleOrRock(self.navigator), None
+
+    # If we detected a sample we should attempt to navigate to itt
+    if len(self.map.objects(ObjectType.SAMPLE)) > 0:
+      return DiscoverSample(self.navigator), None
+
+    self.target_dist = self.target_object.distance
+    self.target_head = self.target_object.heading
+
+    if self.target_dist < cfg.NAV_DIST_ROCK:
+      return FlipRockLookat(self.navigator), None
+
+    # if self.should_avoid_obstacle():
+    #   self.keep_target = True
+    #   return State.NAV_AVOID_OBSTACLE_HEADING
+
+    return None, None
+
+class NavSample(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.SAMPLE)
+    self.move_speed = cfg.MOVE_SPEED_FAST
+
+  def update(self):
+    self.update_target()
+
+    if self.target_object is None:
+      return DiscoverSample(self.navigator), None
+
+    self.target_dist = self.target_object.distance
+    self.target_head = self.target_object.heading
+
+    if self.target_dist < cfg.NAV_DIST_SAMPLE:
+      return CollectSampleLookat(self.navigator), None
+
+    # if self.should_avoid_obstacle():
+    #   self.keep_target = True
+    #   return State.NAV_AVOID_OBSTACLE_HEADING
+
+    return None, None
+
+class NavLander(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.LANDER)
+    self.move_speed = cfg.MOVE_SPEED_FAST
+
+  def update(self):
+    self.update_target()
+
+    if self.target_object is None:
+      return DiscoverLander(self.navigator), None
+
+    self.target_dist = self.target_object.distance
+    self.target_head = self.target_object.heading
+
+    if self.target_dist < cfg.NAV_DIST_LANDER:
+      return DropSampleLookat(self.navigator), None
+
+    # if self.should_avoid_obstacle():
+    #   self.keep_target = True
+    #   return State.NAV_AVOID_OBSTACLE_HEADING
+
+    return None, None
+
+# ///////////////////////////////////////////////////////////
+# DROP SAMPLE STATES
+
+class DropSampleLookat(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.LANDER)
+    self.rotate_speed = cfg.ROTATE_SPEED_MED
+    self.move_speed   = 0
+
+  def update(self):
+    self.update_target()
+    if self.target_object is None:
+      return DiscoverSampleOrRock(self.navigator), None
+
+    self.target_head = self.target_object.heading
+    self.target_dist = 0
+
+    if abs(self.target_head) < cfg.LOOKAT_THRESH_LANDER:
+      return DropSampleApproach(self.navigator), None
+      
+    return None, None
+
+class DropSampleApproach(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.LANDER)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = 0
+
+  def update(self):
+    self.update_target()
+
+    self.target_head  = 0
+    self.target_dist  = 1
+
+    if self.state_duration() > cfg.APPROACH_TIME_LANDER:
+      return DropSample(self.navigator), None
+
+    return None, None
+
+class DropSample(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.LANDER)
+
+  def update(self):
+    self.controller.perform_action(SCS_ACTION.DROP_SAMPLE)
+    return DiscoverSampleOrRock(self.navigator), None
+
+# ///////////////////////////////////////////////////////////
+# FLIP ROCK STATES
+
+class FlipRockLookat(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.ROCK)
+    self.move_speed   = 0
+    self.rotate_speed = cfg.ROTATE_SPEED_MED
+
+  def update(self):
+    self.update_target()
+    if self.target_object is None:
+      return DiscoverSampleOrRock(self.navigator), None
+
+    self.target_dist  = 0
+    self.target_head = self.target_object.heading
+
+    if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
+      return FlipRockApproach(self.navigator), None
+
+    return None, None
+
+class FlipRockApproach(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.ROCK)
+    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.rotate_speed = 0
+
+  def update(self):
+    if self.is_first_update():
+      self.controller.perform_action(SCS_ACTION.FLIP_ROCK_PREP)
+      self.state_start_time = time.time()
+
+    self.target_head  = 0
+    self.target_dist  = 1
+
+    if self.state_duration() > cfg.APPROACH_TIME_ROCK:
+      return FlipRock(self.navigator), None
+
+    return None, None
+
+class FlipRock(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.ROCK)
+
+  def update(self):
+    self.controller.perform_action(SCS_ACTION.FLIP_ROCK)
+    return DiscoverSample(self.navigator), None
+
+# ///////////////////////////////////////////////////////////
+# COLLECT SAMPLE STATES
+
+class CollectSampleLookat(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.SAMPLE)
+    self.rotate_speed = cfg.ROTATE_SPEED_SLOW
+    self.move_speed   = 0
+
+  def update(self):
+    if self.state_first_update:
+      self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
+
+    self.update_target()
+
+    if self.target_object is None:
+      return DiscoverSampleOrRock(self.navigator), None
+
+    self.target_head = self.target_object.heading
+    self.target_dist = 0
+
+    if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
+      return CollectSampleApproach(self.navigator), None
+      
+    return None, None
+
+class CollectSampleApproach(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.SAMPLE)
+    self.rotate_speed = cfg.ROTATE_SPEED_SLOW
+    self.move_speed   = cfg.MOVE_SPEED_SLOW
+
+  def update(self):
+    self.update_target()
+
+    self.target_head  = 0
+    self.target_dist  = 1
+
+    if self.state_duration() > cfg.APPROACH_TIME_SAMPLE:
+      return CollectSample(self.navigator), None
+
+    return None, None
+
+class CollectSample(ObjectTargetState):
+  def __init__(self, navigator):
+    super().__init__(navigator, ObjectType.SAMPLE)
+
+  def update(self):
+    self.update_target()
+    self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE)
+    return DiscoverLander(self.navigator), None
+
+# //////////////////////////////////////////////////////////////
+# NAVIGATION STATE CONTAINER
+
 class Navigator:
   def __init__(self, controller):
     global cfg
 
     cfg = controller.config()
 
-    self.map                = Map()
-    self.target_dist        = 0
-    self.target_head        = 0
-    self.target_head        = 0
-    self.keep_target        = False
-    self.target_object      = None
-    self.target_object_type = None
-    self.obstacle           = None
-    self.avoid_sign         = 1
-    self.avoid_amount       = 0
-    self.move_speed         = cfg.MOVE_SPEED_MED
-    self.rotate_speed       = cfg.ROTATE_SPEED_FAST
-    self.state              = None
-    self.prev_state         = None
-    self.state_start_time   = 0
-    self.state_first_update = False
     self.controller         = controller
-    self.state_before_avoid = None
-    controller.travel_position_open()
-    self.set_state(State.DISCOVER_SAMPLE_OR_ROCK)
+    self.map                = ObjectMap()
+    self.state              = None
+    self.state_stack        = queue.LifoQueue()
 
+    controller.travel_position_open()
+
+    self.set_state(DiscoverSampleOrRock(self), None)
 
   # ///////////////////////////////////////////////////////////
   # NAVIGATOR UPDATE
@@ -173,321 +517,59 @@ class Navigator:
 
     self.map.update(self.controller.get_detected_objects())
 
-    next_state = None
-    if self.state == State.DISCOVER_SAMPLE_OR_ROCK:
-      next_state = self.discover_rock_or_sample()
-    if self.state == State.DISCOVER_SAMPLE:
-      next_state = self.discover_sample()
-    if self.state == State.DISCOVER_OBSTACLE:
-      next_state = self.discover_obstacle()
-    if self.state == State.DISCOVER_LANDER:
-      next_state = self.discover_lander()
-    if self.state == State.NAV_ROCK:
-      next_state = self.nav_rock()
-    if self.state == State.NAV_SAMPLE:
-      next_state = self.nav_sample()
-    if self.state == State.NAV_LANDER:
-      next_state = self.nav_lander()
-    if self.state == State.NAV_AVOID_OBSTACLE_HEADING:
-      next_state = self.nav_avoid_obstacle_heading()
-    if self.state == State.NAV_AVOID_OBSTACLE_MOVE:
-      next_state = self.nav_avoid_obstacle_move()
-    if self.state == State.FLIP_ROCK_LOOKAT:
-      next_state = self.flip_rock_lookat()
-    if self.state == State.FLIP_ROCK_APPROACH:
-      next_state = self.flip_rock_approach()
-    if self.state == State.FLIP_ROCK:
-      next_state = self.flip_rock()
-    if self.state == State.COLLECT_SAMPLE_LOOKAT:
-      next_state = self.collect_sample_lookat()
-    if self.state == State.COLLECT_SAMPLE_APPROACH:
-      next_state = self.collect_sample_approach()
-    if self.state == State.COLLECT_SAMPLE:
-      next_state = self.collect_sample()
-    if self.state == State.DROP_SAMPLE_LOOKAT:
-      next_state = self.drop_sample_lookat()
-    if self.state == State.DROP_SAMPLE_APPROACH:
-      next_state = self.drop_sample_approach()
-    if self.state == State.DROP_SAMPLE:
-      next_state = self.drop_sample()
+    if self.state is not None:
+      if self.state.is_first_update():
+        self.state.start()
+      next_state, transition_type = self.state.update()
+      self.state.state_first_update = False
+      self.set_state(next_state, transition_type)
 
-    self.state_first_update = False
-    self.set_state(next_state)
     self.apply_motor_speed()
 
     if next_state is not None:
-      time.sleep(0.5)
+      time.sleep(cfg.STATE_CHANGE_DELAY) # Wait between state changes
 
     return next_state
 
   def apply_motor_speed(self):
+    if self.state is None:
+      self.controller.set_motors(0, 0)
+      return
+
+    target_dist  = self.state.target_dist
+    target_head  = self.state.target_head
+    move_speed   = self.state.move_speed
+    rotate_speed = self.state.rotate_speed
+
     vel = 0
-    if self.target_dist != 0:
-      vel = self.move_speed * sign(self.target_dist)
-    ang = self.rotate_speed
-    ang = ang * min(max(self.target_head, -cfg.ROTATE_DEAD_ZONE), cfg.ROTATE_DEAD_ZONE) / cfg.ROTATE_DEAD_ZONE
+    if target_dist != 0:
+      vel = move_speed * sign(target_dist)
+    ang = rotate_speed
+    ang = ang * min(max(target_head, -cfg.ROTATE_DEAD_ZONE), cfg.ROTATE_DEAD_ZONE) / cfg.ROTATE_DEAD_ZONE
     self.controller.set_motors(vel, ang)
 
   # ///////////////////////////////////////////////////////////
   # STATE MANAGEMENT
 
-  def clear_target(self):
-    self.target_dist   = 0
-    self.target_head   = 0
-    self.target_object = None
+  def set_state(self, new_state, transition_type):
+    if transition_type == StateTransition.RECORD_STATE and self.state != None:
+      self.state_stack.put(self.state)
+    if transition_type == StateTransition.CLEAR_STACK:
+      self.state_stack = queue.LifoQueue()
+    if transition_type == StateTransition.PREVIOUS:
+      if self.state_stack.empty():
+        return False
+      new_state = self.state_stack.get()
 
-  def set_state(self, new_state):
     if new_state == None:
       return False
 
     print('State Changed > {}'.format(new_state))
     self.state = new_state
-    if not self.keep_target:
-      self.clear_target()
     self.keep_target = False
     self.state_start_time   = time.time()
     self.state_first_update = True
     return True
-
-  def this_state_duration(self):
-    return time.time() - self.state_start_time
-
-
-  # ///////////////////////////////////////////////////////////
-  # DISCOVER OBJECT STATES
-
-  def discover_rock_or_sample(self):
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
-    if self.navigate_discover_type(ObjectType.SAMPLE):
-      return State.NAV_SAMPLE
-    if self.navigate_discover_type(ObjectType.ROCK):
-      return State.NAV_ROCK
-    return None
-
-  def discover_sample(self):
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
-    if self.navigate_discover_type(ObjectType.SAMPLE):
-      return State.NAV_SAMPLE
-
-    if self.this_state_duration() > cfg.DISC_TIMEOUT_SAMPLE:
-      return State.DISCOVER_SAMPLE_OR_ROCK
-
-    return None
-
-  def discover_lander(self):
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
-    if self.navigate_discover_type(ObjectType.LANDER):
-      return State.NAV_LANDER
-    return None
-
-  def discover_obstacle(self):
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
-    if self.navigate_discover_type(ObjectType.OBSTACLE):
-      return State.NAV_LANDER
-    return None
-
-
-  # ///////////////////////////////////////////////////////////
-  # NAVIGATE STATES
-
-  def nav_sample(self):
-    self.move_speed = cfg.MOVE_SPEED_FAST
-    self.update_target_object_by_type(ObjectType.SAMPLE)
-    if self.target_object is None:
-      return State.DISCOVER_SAMPLE
-
-    self.target_dist = self.target_object.distance
-    self.target_head = self.target_object.heading
-
-    if self.target_dist < cfg.NAV_DIST_SAMPLE:
-      return State.COLLECT_SAMPLE_LOOKAT
-
-    if self.should_avoid_obstacle():
-      self.keep_target = True
-      return State.NAV_AVOID_OBSTACLE_HEADING
-
-    return None
-
-  def nav_rock(self):
-    self.move_speed = cfg.MOVE_SPEED_FAST
-    self.update_target_object_by_type(ObjectType.ROCK)
-    if self.target_object is None:
-      return State.DISCOVER_SAMPLE_OR_ROCK
-
-    # If we detected a sample
-    if len(self.map.objects(ObjectType.SAMPLE)) > 0:
-      return State.DISCOVER_SAMPLE
-
-    self.target_dist = self.target_object.distance
-    self.target_head = self.target_object.heading
-
-    if self.target_dist < cfg.NAV_DIST_ROCK:
-      return State.FLIP_ROCK_LOOKAT
-
-    if self.should_avoid_obstacle():
-      self.keep_target = True
-      return State.NAV_AVOID_OBSTACLE_HEADING
-
-    return None
-
-  def nav_lander(self):
-    self.move_speed = cfg.MOVE_SPEED_FAST
-    self.update_target_object_by_type(ObjectType.LANDER)
-    if self.target_object is None:
-      return State.DISCOVER_LANDER
-
-    self.target_dist = self.target_object.distance
-    self.target_head = self.target_object.heading
-
-    if self.target_dist < cfg.NAV_DIST_LANDER:
-      return State.DROP_SAMPLE_LOOKAT
-
-    if self.should_avoid_obstacle():
-      self.keep_target = True
-      return State.NAV_AVOID_OBSTACLE_HEADING
-
-    return None
-
-  def nav_avoid_obstacle_heading(self):
-    self.target_head = self.avoid_sign
-    self.target_dist = 0
-    if not self.should_avoid_obstacle(self):
-      self.keep_target = True
-      return State.NAV_AVOID_OBSTACLE_MOVE
-    return None
-  
-  def nav_avoid_obstacle_move(self):
-    self.move_speed  = cfg.MOVE_SPEED_MED
-    self.target_dist = 1
-    if self.this_state_duration() > cfg.AVOID_MOVE_TIME:
-      return self.state_before_avoid
-    self.state_before_avoid = None
-    return None
-
-
-  # ///////////////////////////////////////////////////////////
-  # COLLECT SAMPLE STATES
-
-  def collect_sample_lookat(self):
-    self.rotate_speed = cfg.ROTATE_SPEED_SLOW
-    self.rotate_speed = cfg.MOVE_SPEED_SLOW
-    if self.state_first_update:
-      self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
-
-    self.update_target_object_by_type(ObjectType.SAMPLE)
-    if self.target_object is None:
-      return State.DISCOVER_SAMPLE_OR_ROCK
-
-    self.target_head = self.target_object.heading
-    self.target_dist = 0
-
-    if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
-      return State.COLLECT_SAMPLE_APPROACH
-      
-    return None
-
-  def collect_sample_approach(self):
-    self.rotate_speed = cfg.ROTATE_SPEED_SLOW
-    self.rotate_speed = cfg.MOVE_SPEED_SLOW
-    self.target_head = 0
-    self.target_dist = 1
-
-    if self.this_state_duration() > cfg.APPROACH_TIME_SAMPLE:
-      return State.COLLECT_SAMPLE
-
-    return None
-
-  def collect_sample(self):
-    self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE)
-    return State.DISCOVER_LANDER
-
-
-  # ///////////////////////////////////////////////////////////
-  # DROP SAMPLE STATES
-
-  def drop_sample_lookat(self):
-    self.update_target_object_by_type(ObjectType.LANDER)
-    if self.target_object is None:
-      return State.DISCOVER_LANDER
-
-    self.target_head = self.target_object.heading
-    self.target_dist = 0
-
-    if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
-      return State.DROP_SAMPLE_APPROACH
-      
-    return None
-
-  def drop_sample_approach(self):
-    self.move_speed  = cfg.MOVE_SPEED_FAST
-    self.target_head = 0
-    self.target_dist = 1
-
-    if self.this_state_duration() > cfg.APPROACH_TIME_LANDER:
-      return State.DROP_SAMPLE
-
-    return None
-
-  def drop_sample(self):
-    self.controller.perform_action(SCS_ACTION.DROP_SAMPLE)
-    return State.DISCOVER_SAMPLE_OR_ROCK
-
-
-  # ///////////////////////////////////////////////////////////
-  # FLIP ROCK STATES
-
-  def flip_rock_lookat(self):
-    if self.state_first_update:
-      self.controller.perform_action(SCS_ACTION.FLIP_ROCK_PREP)
-
-    self.update_target_object_by_type(ObjectType.ROCK)
-    if self.target_object is None:
-      return State.DISCOVER_SAMPLE_OR_ROCK
-
-    self.target_head = self.target_object.heading
-    self.target_dist = 0
-
-    if abs(self.target_head) < cfg.LOOKAT_THRESH_ROCK:
-      return State.FLIP_ROCK_APPROACH
-      
-    return None
-
-  def flip_rock_approach(self):
-    self.move_speed  = cfg.MOVE_SPEED_MED
-    self.target_head = 0
-    self.target_dist = 1
-
-    if self.this_state_duration() > cfg.APPROACH_TIME_ROCK:
-      return State.FLIP_ROCK
-
-    return None
-
-  def flip_rock(self):
-    self.controller.perform_action(SCS_ACTION.FLIP_ROCK)
-    return State.DISCOVER_SAMPLE
-
-  # ///////////////////////////////////////////////////////////
-  # GENERIC HELPERS
-
-  def navigate_discover_type(self, object_type=None):
-    if len(self.map.objects(object_type)) > 0:
-      return True
-    self.target_dist = 0
-    self.target_head = math.radians(1)
-    return False
-
-  def update_target_object_by_type(self, type=None):
-    if type is not None and self.target_object is not None:
-      if self.target_object.type != type:
-        self.target_object.type = None
-
-    most_recent = self.map.most_recent_of_type(type)
-    if most_recent is not None:
-      self.target_object = most_recent
 
   def update_avoid_obstacle(self):
     o = self.map.closest_of_type(ObjectType.OBSTACLE)
@@ -495,21 +577,20 @@ class Navigator:
       return False
     self.obstacle = o
 
-  def should_avoid_obstacle(self):
-    return False
-    # o = self.map.closest_of_type(ObjectType.OBSTACLE)
-    # if o is None:
-    #   return False
-    # if o.distance > cfg.AVOID_DISTANCE[ObjectType.OBSTACLE]:
-    #   return False
-    # 
-    # diff = self.target_head - o.heading
-    # if abs(diff) > cfg.AVOID_HEADING[ObjectType.OBSTACLE]:
-    #   return False
-    # 
-    # if self.state_before_avoid is None:
-    #   self.state_before_avoid = self.state
-    # self.avoid_amount = cfg.AVOID_HEADING[ObjectType.OBSTACLE] - abs(diff)
-    # self.avoid_sign   = sign(diff)
-    # self.obstacle     = o
-    # return True
+  def try_avoid_obstacle(self, type):
+    o = self.map.closest_of_type(ObjectType.OBSTACLE)
+    if o is None:
+      return False
+    if o.distance > cfg.AVOID_DISTANCE[ObjectType.OBSTACLE]:
+      return False
+    
+    diff = self.target_head - o.heading
+    if abs(diff) > cfg.AVOID_HEADING[ObjectType.OBSTACLE]:
+      return False
+    
+    if self.state_before_avoid is None:
+      self.state_before_avoid = self.state
+    self.avoid_amount = cfg.AVOID_HEADING[ObjectType.OBSTACLE] - abs(diff)
+    self.avoid_sign   = sign(diff)
+    self.obstacle     = o
+    return True

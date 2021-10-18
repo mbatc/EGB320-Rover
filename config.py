@@ -2,6 +2,11 @@ import math
 
 from subsystems.interop import ObjectType
 
+STATE_CHANGE_DELAY = 1.5 # Seconds
+
+MIN_ROTATE_TIME  = 8
+MAX_TRAVEL_TIME  = 5
+
 DIST_THRESH      = 10
 HEAD_THRESH      = math.radians(5)
 PRUNE_TIME       = 0.75

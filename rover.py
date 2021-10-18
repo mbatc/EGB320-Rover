@@ -11,14 +11,15 @@ simulated      = True
 def navigate(navigator, initial_state=None, expected_state=None):
   if expected_state is None:
     expected_state = initial_state
-  navigator.set_state(initial_state)
+
+  navigator.set_state(initial_state, nav.StateTransition.CLEAR_STACK)
 
   while navigator.update() != expected_state or expected_state is None:
     pass
 
-def show_detected(navigator, controller):
+def show_detected(controller):
   while True:
-    controller.update(navigator)
+    controller.update()
     objects = controller.get_detected_objects()
     if len(objects) == 0:
       continue
@@ -89,7 +90,7 @@ def run(controller):
     elif cmd_id == cmdline.Command.SHOW_DETECTED:
       try:
         print('showing cv2 detected objects. Press CTRL+C to stop')
-        show_detected(navigator, controller)
+        show_detected(controller)
       except KeyboardInterrupt as e:
         print('Ending display detected...')
     elif cmd_id == cmdline.Command.NAV_SEARCH_SAMPLE:
