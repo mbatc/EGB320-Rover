@@ -134,6 +134,8 @@ class State:
     self.target_head        = 0
     self.state_start_time   = 0
     self.state_first_update = True
+    self.obstacle           = None
+    self.obstacle_detected_time = 0
 
   def is_first_update(self):
     return self.state_first_update
@@ -145,9 +147,25 @@ class State:
     self.state_start_time = time.time()
 
   def avoid_obstacles(self, object_type):
-    # for self.map.get_objects():
+    closest = self.map.closest_of_type(object_type)
+    if closest is not None:
+      print('Detected ' + str(self.obstacle))
+      self.obstacle = closest
+      self.obstacle_detected_time = time.time()
 
-    pass
+    if self.obstacle is not None:
+      print('Avoiding ' + str(self.obstacle))
+      limit = math.asin(min(1, cfg.AVOID_RADIUS[object_type] / self.obstacle.distance))
+      dist  = self.target_head - self.obstacle.heading
+      dir   = sign(dist)
+
+      if abs(dist) < limit:
+        self.target_head = self.obstacle.heading + dir * limit
+
+    if time.time() - self.obstacle_detected_time > cfg.AVOID_MOVE_TIME:
+      self.obstacle = None
+
+
 
 # ///////////////////////////////////////////////////////////
 # DISCOVER OBJECT STATES
@@ -259,15 +277,21 @@ class ObjectTargetState(State):
     super().__init__(navigator)
     self.target_object = None
     self.target_type   = target_type
+    self.target_last_detected_time = time.time()
 
   def update_target(self):
-    if self.target_type is not None and self.target_object is not None:
-      if self.target_object.type != self.target_type:
-        self.target_object.type = None
-
+    # Get the most recently detected object of the target type
     most_recent = self.map.most_recent_of_type(self.target_type)
     if most_recent is not None:
       self.target_object = most_recent
+
+    # If we are avoiding an obstacle delay pruning of the target object
+    if most_recent is not None or self.obstacle is not None:
+      self.target_last_detected_time = time.time()
+
+    # Check if we haven't detected a target for an extended period of time
+    if time.time() - self.target_last_detected_time > 10:
+      self.target_object = None # We lost the target
 
 class NavRock(ObjectTargetState):
   def __init__(self, navigator):
@@ -291,9 +315,7 @@ class NavRock(ObjectTargetState):
     if self.target_dist < cfg.NAV_DIST_ROCK:
       return FlipRockLookat(self.navigator), None
 
-    # if self.should_avoid_obstacle():
-    #   self.keep_target = True
-    #   return State.NAV_AVOID_OBSTACLE_HEADING
+    self.avoid_obstacles(ObjectType.OBSTACLE)
 
     return None, None
 
@@ -314,9 +336,7 @@ class NavSample(ObjectTargetState):
     if self.target_dist < cfg.NAV_DIST_SAMPLE:
       return CollectSampleLookat(self.navigator), None
 
-    # if self.should_avoid_obstacle():
-    #   self.keep_target = True
-    #   return State.NAV_AVOID_OBSTACLE_HEADING
+    self.avoid_obstacles(ObjectType.OBSTACLE)
 
     return None, None
 
@@ -337,9 +357,7 @@ class NavLander(ObjectTargetState):
     if self.target_dist < cfg.NAV_DIST_LANDER:
       return DropSampleLookat(self.navigator), None
 
-    # if self.should_avoid_obstacle():
-    #   self.keep_target = True
-    #   return State.NAV_AVOID_OBSTACLE_HEADING
+    self.avoid_obstacles(ObjectType.OBSTACLE)
 
     return None, None
 
@@ -545,7 +563,10 @@ class Navigator:
     if target_dist != 0:
       vel = move_speed * sign(target_dist)
     ang = rotate_speed
-    ang = ang * min(max(target_head, -cfg.ROTATE_DEAD_ZONE), cfg.ROTATE_DEAD_ZONE) / cfg.ROTATE_DEAD_ZONE
+
+    correction = min(max(target_head, -cfg.ROTATE_DEAD_ZONE), cfg.ROTATE_DEAD_ZONE) / cfg.ROTATE_DEAD_ZONE
+    correction = sign(correction) * math.pow(abs(correction), cfg.HEAD_SENSITIVITY)
+    ang = ang * correction
     self.controller.set_motors(vel, ang)
 
   # ///////////////////////////////////////////////////////////
@@ -569,28 +590,4 @@ class Navigator:
     self.keep_target = False
     self.state_start_time   = time.time()
     self.state_first_update = True
-    return True
-
-  def update_avoid_obstacle(self):
-    o = self.map.closest_of_type(ObjectType.OBSTACLE)
-    if o is None:
-      return False
-    self.obstacle = o
-
-  def try_avoid_obstacle(self, type):
-    o = self.map.closest_of_type(ObjectType.OBSTACLE)
-    if o is None:
-      return False
-    if o.distance > cfg.AVOID_DISTANCE[ObjectType.OBSTACLE]:
-      return False
-    
-    diff = self.target_head - o.heading
-    if abs(diff) > cfg.AVOID_HEADING[ObjectType.OBSTACLE]:
-      return False
-    
-    if self.state_before_avoid is None:
-      self.state_before_avoid = self.state
-    self.avoid_amount = cfg.AVOID_HEADING[ObjectType.OBSTACLE] - abs(diff)
-    self.avoid_sign   = sign(diff)
-    self.obstacle     = o
     return True

@@ -93,7 +93,7 @@ def run(controller):
         show_detected(controller)
       except KeyboardInterrupt as e:
         print('Ending display detected...')
-    elif cmd_id == cmdline.Command.NAV_SEARCH_SAMPLE:
+    elif cmd_id == cmdline.Command.NAVs_SEARCH_SAMPLE:
       navigate(navigator, nav.State.DISCOVER_SAMPLE)
     elif cmd_id == cmdline.Command.NAV_SEARCH_ROCK:
       navigate(navigator, nav.State.DISCOVER_SAMPLE_OR_ROCK)
