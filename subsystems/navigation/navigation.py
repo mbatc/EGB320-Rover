@@ -1,4 +1,3 @@
-from types import ClassMethodDescriptorType
 from ..interop import SCS_ACTION, DetectedObject, ObjectType
 
 from vector_2d import *
