@@ -1,5 +1,5 @@
 
-from subsystems.interop import SCS_ACTION, DetectedObject
+from subsystems.interop import SCS_ACTION, DetectedObject, Status
 from subsystems.navigation import env_params
 from subsystems.navigation.env_params import ObjectType
 from subsystems.navigation.navigation import Navigator
@@ -66,6 +66,9 @@ class Controller:
       return self.collect_sample()
     time.sleep(1)
     return True
+
+  def set_status(self, status:Status):
+    print('ROBOT STATUS: ' + str(status))
 
   def travel_position_open(self):
     print('travel_position_open() not supported by simulation.')

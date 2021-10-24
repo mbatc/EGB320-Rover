@@ -10,6 +10,13 @@ class SCS_ACTION(Enum):
   FLIP_ROCK           = 3,
   COLLECT_SAMPLE_PREP = 4,
   COLLECT_SAMPLE      = 5,
+  TRAVEL              = 6
+
+class Status(Enum):
+  SEARCH_SAMPLE  = 0, # Red
+  COLLECT_SAMPLE = 1, # Yellow
+  SEARCH_LANDER  = 2  # Green
+
 
 class ObjectType(Enum):
   ROCK     = 'rock',

@@ -6,6 +6,7 @@ import config as cfg
 has_mobility = True
 has_scs      = True
 has_vision   = True
+has_status   = True
 
 # Try import subsystems
 try:
@@ -24,6 +25,12 @@ try:
   from subsystems.vision import vision
 except (RuntimeError, ModuleNotFoundError) as ex:
   has_vision = False
+  print(ex)
+
+try:
+  from subsystems.status import status
+except (RuntimeError, ModuleNotFoundError) as ex:
+  has_status = False
   print(ex)
 
 class Controller:
@@ -63,6 +70,12 @@ class Controller:
   def config(self):
     return cfg
 
+  def set_status(self, status:interop.Status):
+    if has_status:
+      status.set(status)
+    else:
+      print('Cannot Set Status. Status system not available.')
+
   def get_detected_objects(self):
     if has_vision and self.detector is not None:
       return vision.ObjectDetection(self.detector)
@@ -80,6 +93,8 @@ class Controller:
       print('Cannot perform action {}. Collection system not available.'.format(action))
       return True
     
+    if (action == interop.SCS_ACTION.TRAVEL):
+      scs.SetToTravel()
     if (action == interop.SCS_ACTION.FLIP_ROCK_PREP):
       scs.FlipRock_Prepare()
     if (action == interop.SCS_ACTION.FLIP_ROCK):

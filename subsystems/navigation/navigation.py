@@ -4,6 +4,7 @@ from vector_2d import *
 
 from enum import Enum
 
+import status
 import queue
 import math
 import time
@@ -215,6 +216,8 @@ class DiscoverSampleOrRock(DiscoverBase):
     self.rotate_speed = cfg.ROTATE_SPEED_FAST
 
   def update(self):
+    if self.is_first_update():
+      status.set_status(status.SEARCH_SAMPLE)
     # Check finish conditions
     if self.has_discovered(ObjectType.SAMPLE):
       return NavSample(self.navigator), None
@@ -466,9 +469,6 @@ class CollectSampleLookat(ObjectTargetState):
     self.move_speed   = 0
 
   def update(self):
-    if self.state_first_update:
-      self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
-
     self.update_target()
 
     if self.target_object is None:
@@ -489,6 +489,10 @@ class CollectSampleApproach(ObjectTargetState):
     self.move_speed   = cfg.MOVE_SPEED_SLOW
 
   def update(self):
+    if self.is_first_update():
+      status.set_status(status.COLLECT_SAMPLE)
+      self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
+
     self.update_target()
 
     self.target_head  = 0
@@ -506,6 +510,7 @@ class CollectSample(ObjectTargetState):
   def update(self):
     self.update_target()
     self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE)
+    status.set_status(status.SEARCH_LANDER)
     return DiscoverLander(self.navigator), None
 
 # //////////////////////////////////////////////////////////////
