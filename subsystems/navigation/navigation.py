@@ -1,10 +1,10 @@
-from ..interop import SCS_ACTION, DetectedObject, ObjectType
+from ..interop import SCS_ACTION, DetectedObject, ObjectType, Status
 
 from vector_2d import *
+from . import pid
 
 from enum import Enum
 
-import status
 import queue
 import math
 import time
@@ -147,13 +147,9 @@ class State:
     self.state_start_time = time.time()
 
   def avoid_obstacles(self, object_type):
-    closest = self.map.closest_of_type(object_type)
-    if closest is not None:
-      print('Detected ' + str(self.obstacle))
-      self.obstacle = closest
-      self.obstacle_detected_time = time.time()
-
+    self.obstacle = self.map.closest_of_type(object_type)
     if self.obstacle is not None:
+      self.obstacle_detected_time = time.time()
       print('Avoiding ' + str(self.obstacle))
       limit = math.asin(min(1, cfg.AVOID_RADIUS[object_type] / self.obstacle.distance))
       dist  = self.target_head - self.obstacle.heading
@@ -161,11 +157,8 @@ class State:
 
       if abs(dist) < limit:
         self.target_head = self.obstacle.heading + dir * limit
-
-    if time.time() - self.obstacle_detected_time > cfg.AVOID_MOVE_TIME:
-      self.obstacle = None
-
-
+    elif time.time() - self.obstacle_detected_time < cfg.AVOID_MOVE_TIME:
+      self.target_head = 0
 
 # ///////////////////////////////////////////////////////////
 # DISCOVER OBJECT STATES
@@ -188,7 +181,7 @@ class DiscoverBase(State):
 
     if self.rotate:
       self.target_dist = 0
-      self.target_head = math.radians(1)
+      self.target_head = 1
 
       if time.time() - self.active_time > cfg.MIN_ROTATE_TIME:
         closest = self.map.closest_of_type(None)
@@ -217,7 +210,8 @@ class DiscoverSampleOrRock(DiscoverBase):
 
   def update(self):
     if self.is_first_update():
-      status.set_status(status.SEARCH_SAMPLE)
+      self.controller.set_status(Status.SEARCH_SAMPLE)
+
     # Check finish conditions
     if self.has_discovered(ObjectType.SAMPLE):
       return NavSample(self.navigator), None
@@ -490,7 +484,7 @@ class CollectSampleApproach(ObjectTargetState):
 
   def update(self):
     if self.is_first_update():
-      status.set_status(status.COLLECT_SAMPLE)
+      self.controller.set_status(Status.COLLECT_SAMPLE)
       self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE_PREP)
 
     self.update_target()
@@ -510,7 +504,7 @@ class CollectSample(ObjectTargetState):
   def update(self):
     self.update_target()
     self.controller.perform_action(SCS_ACTION.COLLECT_SAMPLE)
-    status.set_status(status.SEARCH_LANDER)
+    self.controller.set_status(Status.SEARCH_LANDER)
     return DiscoverLander(self.navigator), None
 
 # //////////////////////////////////////////////////////////////
@@ -522,10 +516,12 @@ class Navigator:
 
     cfg = controller.config()
 
-    self.controller         = controller
-    self.map                = ObjectMap()
-    self.state              = None
-    self.state_stack        = queue.LifoQueue()
+    self.pid         = pid.pid_controller(cfg.CONTROL_KP, cfg.CONTROL_KI, cfg.CONTROL_KD)
+    self.controller  = controller
+    self.map         = ObjectMap()
+    self.state       = None
+    self.state_stack = queue.LifoQueue()
+    self.last_update = time.time()
 
     controller.travel_position_open()
 
@@ -554,23 +550,24 @@ class Navigator:
     return next_state
 
   def apply_motor_speed(self):
+    update_time = time.time()
+    dt = update_time - self.last_update
+    self.last_update = update_time
+
     if self.state is None:
       self.controller.set_motors(0, 0)
       return
 
     target_dist  = self.state.target_dist
-    target_head  = self.state.target_head
+    target_head  = max(-1, min(1, self.state.target_head / cfg.CONTROL_HEAD_MAX))
     move_speed   = self.state.move_speed
     rotate_speed = self.state.rotate_speed
 
     vel = 0
     if target_dist != 0:
       vel = move_speed * sign(target_dist)
-    ang = rotate_speed
-
-    correction = min(max(target_head, -cfg.ROTATE_DEAD_ZONE), cfg.ROTATE_DEAD_ZONE) / cfg.ROTATE_DEAD_ZONE
-    correction = sign(correction) * math.pow(abs(correction), cfg.HEAD_SENSITIVITY)
-    ang = ang * correction
+    ang = self.pid.update(dt, -target_head, 0)
+    ang = ang * rotate_speed
     self.controller.set_motors(vel, ang)
 
   # ///////////////////////////////////////////////////////////

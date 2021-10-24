@@ -12,10 +12,13 @@ def navigate(navigator, initial_state=None, expected_state=None):
   if expected_state is None:
     expected_state = initial_state
 
-  navigator.set_state(initial_state, nav.StateTransition.CLEAR_STACK)
+  if initial_state is not None:
+    navigator.set_state(initial_state(navigator), nav.StateTransition.CLEAR_STACK)
 
-  while navigator.update() != expected_state or expected_state is None:
-    pass
+  while True:
+    new_state = navigator.update()
+    if expected_state is not None and isinstance(new_state, expected_state):
+      break
 
 def show_detected(controller):
   while True:
@@ -93,27 +96,26 @@ def run(controller):
         show_detected(controller)
       except KeyboardInterrupt as e:
         print('Ending display detected...')
-    elif cmd_id == cmdline.Command.NAVs_SEARCH_SAMPLE:
-      navigate(navigator, nav.State.DISCOVER_SAMPLE)
+    elif cmd_id == cmdline.Command.NAV_SEARCH_SAMPLE:
+      navigate(navigator, nav.DiscoverSample)
     elif cmd_id == cmdline.Command.NAV_SEARCH_ROCK:
-      navigate(navigator, nav.State.DISCOVER_SAMPLE_OR_ROCK)
+      navigate(navigator, nav.DiscoverSampleOrRock)
     elif cmd_id == cmdline.Command.NAV_SEARCH_LANDER:
-      navigate(navigator, nav.State.DISCOVER_LANDER)
+      navigate(navigator, nav.DiscoverLander)
     elif cmd_id == cmdline.Command.NAV_GOTO_SAMPLE:
-      navigate(navigator, nav.State.NAV_SAMPLE)
+      navigate(navigator, nav.NavSample)
     elif cmd_id == cmdline.Command.NAV_GOTO_ROCK:
-      navigate(navigator, nav.State.NAV_ROCK)
+      navigate(navigator, nav.NavRock)
     elif cmd_id == cmdline.Command.NAV_GOTO_LANDER:
-      navigate(navigator, nav.State.NAV_LANDER)
+      navigate(navigator, nav.NavLander)
     elif cmd_id == cmdline.Command.NAV_COLLECT_SAMPLE:
-      navigate(navigator, nav.State.NAV_SAMPLE, nav.State.DISCOVER_LANDER)
+      navigate(navigator, nav.CollectSample, nav.DiscoverLander)
     elif cmd_id == cmdline.Command.NAV_FLIP_ROCK:
-      navigate(navigator, nav.State.NAV_ROCK, nav.State.DISCOVER_SAMPLE)
+      navigate(navigator, nav.FlipRock, nav.DiscoverSample)
     elif cmd_id == cmdline.Command.NAV_DROP_SAMPLE:
-      navigate(navigator, nav.State.NAV_LANDER, nav.State.DISCOVER_SAMPLE_OR_ROCK)
+      navigate(navigator, nav.NavLander, nav.DiscoverSampleOrRock)
     elif cmd_id == cmdline.Command.EXIT:
       break
-  pass
 
 if __name__ == "__main__":
   parse_args()
