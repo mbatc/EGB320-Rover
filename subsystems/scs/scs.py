@@ -6,8 +6,8 @@ import time
 servo1 = None
 servo2 = None
 
-claw_pin = 13
-lift_pin = 22
+claw_pin = 27
+lift_pin = 26
 
 # Set angles 1
 level_2= 110 #collection system parrelell with ground

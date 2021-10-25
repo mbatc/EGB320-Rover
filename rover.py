@@ -21,14 +21,6 @@ def show_detected(controller):
   while True:
     controller.update()
     objects = controller.get_detected_objects()
-    if len(objects) == 0:
-      continue
-
-    print('[')
-    if objects is not None:
-      for obj in objects:
-        print('  {}'.format(obj))
-    print(']')
 
 
 def parse_args():

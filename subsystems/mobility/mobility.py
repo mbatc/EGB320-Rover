@@ -1,105 +1,87 @@
 import RPi.GPIO as GPIO
 from time import sleep
 
-in1 = 24
-in2 = 25
-in3 = 4
-in4 = 5
-ena = 23
-enb = 26
+en_r = 22
+in1_r = 6
+in2_r = 5
 
-pa = None
-pb = None
+en_l = 23
+in1_l = 24
+in2_l = 25
+
+pr = None
+pl = None
 
 def shutdown():
     GPIO.cleanup()
 
 def initialze():
-    global pa
-    global pb
+    global pr
+    global pl
 
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
 
-    GPIO.setup(in1,GPIO.OUT)
-    GPIO.setup(in2,GPIO.OUT)
-    GPIO.setup(in3,GPIO.OUT)
-    GPIO.setup(in4,GPIO.OUT)
-    GPIO.output(in1, GPIO.LOW)
-    GPIO.output(in2, GPIO.LOW)
-    GPIO.output(in3, GPIO.LOW)
-    GPIO.output(in4, GPIO.LOW)
-    GPIO.setup(ena,GPIO.OUT)
-    GPIO.setup(enb,GPIO.OUT)
+    GPIO.setup(in1_r,GPIO.OUT)
+    GPIO.setup(in2_r,GPIO.OUT)
+    GPIO.setup(in1_l,GPIO.OUT)
+    GPIO.setup(in2_l,GPIO.OUT)
+    GPIO.setup(en_r,GPIO.OUT)
+    GPIO.setup(en_l,GPIO.OUT)
+    
+    GPIO.output(in1_r, GPIO.LOW)
+    GPIO.output(in2_r, GPIO.LOW)
+    GPIO.output(in1_l, GPIO.LOW)
+    GPIO.output(in2_l, GPIO.LOW)
 
-    pa=GPIO.PWM(ena,100)
-    pb=GPIO.PWM(enb,100)
+    pr=GPIO.PWM(en_r,100)
+    pl=GPIO.PWM(en_l,100)
 
-    pa.start(0)
-    pb.start(100)    
+    pr.start(0)
+    pl.start(100)
 
+def set_motor(speed, in1, in2, en):
+    dir = speed < 0
+    GPIO.output(in1, GPIO.HIGH if dir else GPIO.LOW)
+    GPIO.output(in2, GPIO.LOW  if dir else GPIO.HIGH)
+    en.ChangeDutyCycle(abs(speed))
+
+def set_right_motor(speed):
+    set_motor(speed, in1_r, in2_r, pr)
+
+def set_left_motor(speed):
+    set_motor(speed, in1_l, in2_l, pl)
+    
 def update(vel, ang):
-        x = 100 - abs(vel + abs(ang)) 
-        if x < 0:
-            x = 0
+        x = 100 - abs(vel + abs(ang))
 
         # print(x)
         
         if vel!=0:
             if ang>0:
                 # print("turning right")
-                GPIO.output(in1,GPIO.HIGH)
-                GPIO.output(in2,GPIO.LOW)
-                GPIO.output(in3,GPIO.HIGH)
-                GPIO.output(in4,GPIO.LOW)
-                pa.ChangeDutyCycle(100 - vel)
-                pb.ChangeDutyCycle(x)
+                set_left_motor(vel)
+                set_right_motor(x)
 
             elif ang<0:
                 # print("turning left")
-                GPIO.output(in1,GPIO.HIGH)
-                GPIO.output(in2,GPIO.LOW)
-                GPIO.output(in3,GPIO.HIGH)
-                GPIO.output(in4,GPIO.LOW)
-                pa.ChangeDutyCycle(x)
-                pb.ChangeDutyCycle(100 - vel)
+                set_left_motor(x)
+                set_right_motor(vel)
 
             elif ang==0:
                 # print("forwards")
-                GPIO.output(in1,GPIO.HIGH)
-                GPIO.output(in2,GPIO.LOW)
-                GPIO.output(in3,GPIO.HIGH)
-                GPIO.output(in4,GPIO.LOW)
-                pa.ChangeDutyCycle(100 - vel)
-                pb.ChangeDutyCycle(100 - vel)  
+                set_right_motor(vel)
+                set_left_motor(vel)
 
         elif vel==0:
-            if ang<0:
-                # print("turn on spot left")
-                GPIO.output(in1,GPIO.HIGH)
-                GPIO.output(in2,GPIO.LOW)
-                GPIO.output(in3,GPIO.HIGH)
-                GPIO.output(in4,GPIO.LOW)
-                pa.ChangeDutyCycle(100-abs(ang))
-                pb.ChangeDutyCycle(100)
-
-            elif ang>0:
-                # print("turn on spot right")
-                GPIO.output(in1,GPIO.HIGH)
-                GPIO.output(in2,GPIO.LOW)
-                GPIO.output(in3,GPIO.HIGH)
-                GPIO.output(in4,GPIO.LOW)
-                pb.ChangeDutyCycle(100-abs(ang))
-                pa.ChangeDutyCycle(100)
+            if ang != 0:
+                # print("turn spot right")
+                set_left_motor(ang)
+                set_right_motor(-ang)
 
             elif ang==0:
-                # print("stop")
-                GPIO.output(in1,GPIO.HIGH)
-                GPIO.output(in2,GPIO.LOW)
-                GPIO.output(in3,GPIO.HIGH)
-                GPIO.output(in4,GPIO.LOW)
-                pa.ChangeDutyCycle(100)
-                pb.ChangeDutyCycle(100)
+                set_left_motor(0)
+                set_right_motor(0)
         
         else:
             print("<<<  wrong input  >>>")
