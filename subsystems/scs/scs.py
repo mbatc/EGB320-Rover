@@ -34,14 +34,12 @@ def set_lift(angle):
     
 # Angle cal functions
 def Set_angle_1(angle_1):
-    print('Setting servo 1: ' + str(angle_1))
     duty_1 = angle_1 # / 20 + 2
 
     pi.set_servo_pulsewidth(lift_pin, duty_1)
     time.sleep(0.5)
 
 def Set_angle_2(angle_2):
-    print('Setting servo 2: ' + str(angle_2))
     duty_2 = angle_2 # / 20 + 2
 
     pi.set_servo_pulsewidth(claw_pin, duty_2)

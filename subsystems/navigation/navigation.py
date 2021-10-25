@@ -150,7 +150,6 @@ class State:
     self.obstacle = self.map.closest_of_type(object_type)
     if self.obstacle is not None:
       self.obstacle_detected_time = time.time()
-      print('Avoiding ' + str(self.obstacle))
       limit = math.asin(min(1, cfg.AVOID_RADIUS[object_type] / self.obstacle.distance))
       dist  = self.target_head - self.obstacle.heading
       dir   = sign(dist)
@@ -273,11 +272,12 @@ class ObjectTargetState(State):
     super().__init__(navigator)
     self.target_object = None
     self.target_type   = target_type
+    self.target_dist   = 10000
     self.target_last_detected_time = time.time()
 
   def update_target(self):
     # Get the most recently detected object of the target type
-    most_recent = self.map.most_recent_of_type(self.target_type)
+    most_recent = self.map.closest_of_type(self.target_type)
     if most_recent is not None:
       self.target_object = most_recent
 
@@ -292,7 +292,7 @@ class ObjectTargetState(State):
 class NavRock(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.ROCK)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_SPEED_MED
     self.rotate_speed = cfg.ROTATE_SPEED_FAST
 
   def update(self):
@@ -305,7 +305,7 @@ class NavRock(ObjectTargetState):
     if len(self.map.objects(ObjectType.SAMPLE)) > 0:
       return DiscoverSample(self.navigator), None
 
-    self.target_dist = self.target_object.distance
+    self.target_dist = min(self.target_dist, self.target_object.distance)
     self.target_head = self.target_object.heading
 
     if self.target_dist < cfg.NAV_DIST_ROCK:
@@ -318,7 +318,8 @@ class NavRock(ObjectTargetState):
 class NavSample(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.SAMPLE)
-    self.move_speed = cfg.MOVE_SPEED_FAST
+    self.move_speed = cfg.MOVE_SPEED_MED
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
 
   def update(self):
     self.update_target()
@@ -326,7 +327,7 @@ class NavSample(ObjectTargetState):
     if self.target_object is None:
       return DiscoverSample(self.navigator), None
 
-    self.target_dist = self.target_object.distance
+    self.target_dist = min(self.target_dist, self.target_object.distance)
     self.target_head = self.target_object.heading
 
     if self.target_dist < cfg.NAV_DIST_SAMPLE:
@@ -339,7 +340,8 @@ class NavSample(ObjectTargetState):
 class NavLander(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.LANDER)
-    self.move_speed = cfg.MOVE_SPEED_FAST
+    self.move_speed = cfg.MOVE_SPEED_MED
+    self.rotate_speed = cfg.ROTATE_SPEED_FAST
 
   def update(self):
     self.update_target()
@@ -347,7 +349,7 @@ class NavLander(ObjectTargetState):
     if self.target_object is None:
       return DiscoverLander(self.navigator), None
 
-    self.target_dist = self.target_object.distance
+    self.target_dist = min(self.target_dist, self.target_object.distance)
     self.target_head = self.target_object.heading
 
     if self.target_dist < cfg.NAV_DIST_LANDER:
@@ -429,7 +431,7 @@ class FlipRockLookat(ObjectTargetState):
 class FlipRockApproach(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.ROCK)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_SPEED_MED
     self.rotate_speed = 0
 
   def update(self):
@@ -560,16 +562,20 @@ class Navigator:
 
     target_dist  = self.state.target_dist
     target_head  = self.state.target_head
-    rotate_dir   = sign(target_head)
-    allow_rotate = abs(target_head) > cfg.ROTATE_DEAD_ZONE
     move_speed   = self.state.move_speed
     rotate_speed = self.state.rotate_speed
-
+    
     vel = 0
-    if target_dist != 0:
+    ang = 0
+
+    if abs(target_head) > cfg.ROTATE_DEAD_ZONE:
+      rotate_dir   = sign(target_head)
+      ang = rotate_speed * rotate_dir
+    elif target_dist != 0:
       vel = move_speed * sign(target_dist)
-    ang = rotate_speed if allow_rotate else 0
-    ang = ang * rotate_dir
+
+    print('vel: {}, ang: {}'.format(vel, ang))
+
     self.controller.set_motors(vel, ang)
 
   # ///////////////////////////////////////////////////////////

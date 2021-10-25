@@ -40,19 +40,25 @@ class Controller:
       mobility.initialze()
       print('Initializing mobility system')
     else:
-      print('Failed to initializing mobility system. Perhaps a module is missing')
+      print('Failed to initialize mobility system. Perhaps a module is missing')
 
     if has_scs:
       scs.initialize()
       print('Initializing collection system')
     else:
-      print('Failed to initializing collection system. Perhaps a module is missing')
+      print('Failed to initialize collection system. Perhaps a module is missing')
 
     if has_vision:
       self.detector = vision.Initialize()
       print('Initializing vision system')
     else:
-      print('Failed to vision mobility system. Perhaps a module is missing')
+      print('Failed to initialize vision system. Perhaps a module is missing')
+
+    if has_status:
+      status.initialize()
+      print('Initializing status system')
+    else:
+      print('Faield to initialize status system. Perhaps a module is missing')
 
   def __del__(self):
     if has_scs:

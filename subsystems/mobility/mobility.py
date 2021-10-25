@@ -53,39 +53,10 @@ def set_left_motor(speed):
     set_motor(speed, in1_l, in2_l, pl)
     
 def update(vel, ang):
-        x = 100 - abs(vel + abs(ang))
-
-        # print(x)
-        
-        if vel!=0:
-            if ang>0:
-                # print("turning right")
-                set_left_motor(vel)
-                set_right_motor(x)
-
-            elif ang<0:
-                # print("turning left")
-                set_left_motor(x)
-                set_right_motor(vel)
-
-            elif ang==0:
-                # print("forwards")
-                set_right_motor(vel)
-                set_left_motor(vel)
-
-        elif vel==0:
-            if ang != 0:
-                # print("turn spot right")
-                set_left_motor(ang)
-                set_right_motor(-ang)
-
-            elif ang==0:
-                set_left_motor(0)
-                set_right_motor(0)
-        
-        else:
-            print("<<<  wrong input  >>>")
-            print("Velocity or angular velocity undefined")
+    lspeed = vel + ang
+    rspeed = vel - ang
+    set_left_motor(lspeed)
+    set_right_motor(rspeed)
 
 
 

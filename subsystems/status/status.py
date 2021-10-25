@@ -10,7 +10,7 @@ led_green = 4
 def shutdown():
   GPIO.cleanup()
 
-def initialze():
+def initialize():
   GPIO.setmode(GPIO.BCM)
   GPIO.setwarnings(False)
 
