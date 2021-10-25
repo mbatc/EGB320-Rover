@@ -181,7 +181,7 @@ class DiscoverBase(State):
 
     if self.rotate:
       self.target_dist = 0
-      self.target_head = 1
+      self.target_head = cfg.ROTATE_DEAD_ZONE * 2
 
       if time.time() - self.active_time > cfg.MIN_ROTATE_TIME:
         closest = self.map.closest_of_type(None)
@@ -561,7 +561,7 @@ class Navigator:
     target_dist  = self.state.target_dist
     target_head  = self.state.target_head
     rotate_dir   = sign(target_head)
-    allow_rotate = abs(target_head) > cfg.ROTATE_DEAD_ZONE
+    allow_rotate = abs(target_head) > math.degrees(cfg.ROTATE_DEAD_ZONE)
     move_speed   = self.state.move_speed
     rotate_speed = self.state.rotate_speed
 
