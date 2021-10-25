@@ -2,12 +2,13 @@
 # Import libraries
 import RPi.GPIO as GPIO
 import time
+import pigpio
 
 servo1 = None
 servo2 = None
 
-claw_pin = 13
-lift_pin = 22
+claw_pin = 27
+lift_pin = 26
 
 # Set angles 1
 level_2= 110 #collection system parrelell with ground
@@ -20,37 +21,26 @@ close_1 = 170 #SC fully closed
 open_1 = 100 #SC fully open 
 travel_1 = 100
   
-def initialize():
-    global servo1
-    global servo2
+pi = None
 
+def initialize():
+    global pi
+    pi = pigpio.pi()
     # Set GPIO numbering mode
     GPIO.setmode(GPIO.BCM)
-    
-    # Set pins 13 & 22 as outputs at 50Hz and as PWM servo1 & servo2
-    GPIO.setup(claw_pin,GPIO.OUT)
-    servo1 = GPIO.PWM(claw_pin,50) # pin 13 for servo1 (lift)
-    GPIO.setup(lift_pin,GPIO.OUT)
-    servo2 = GPIO.PWM(lift_pin,50) # pin 22 for servo2 (collect)
-    
-    # Start PWM running on both servos, value of 0 (pulse off)
-    servo1.start(0)
-    servo2.start(0)
 
 # Angle cal functions
 def Set_angle_1(angle_1):
     duty_1 = angle_1 / 20 + 2
-    GPIO.output(lift_pin, True)
-    servo1.ChangeDutyCycle(duty_1)
-    time.sleep(1)
-    GPIO.output(lift_pin, False)
+
+    pi.set_servo_pulsewidth(lift_pin, duty_1)
+    time.sleep(0.5)
 
 def Set_angle_2(angle_2):
     duty_2 = angle_2 / 20 + 2
-    GPIO.output(claw_pin, True)
-    servo2.ChangeDutyCycle(duty_2)
-    time.sleep(1)
-    GPIO.output(claw_pin, False)
+
+    pi.set_servo_pulsewidth(claw_pin, duty_2)
+    time.sleep(0.5)
 
 #performance functions
 def SetToTravel():
@@ -58,8 +48,6 @@ def SetToTravel():
     time.sleep(0.7)
     Set_angle_1(travel_1)
     time.sleep(0.7)
-    
-    
 
 def CollectSample_Prepare():
     Set_angle_2(level_2)
@@ -94,6 +82,5 @@ def FlipRock():
     time.sleep(0.7)
 
 def shutdown():
-    servo1.stop()
-    servo2.stop()
+    pi.stop()
     GPIO.cleanup()
