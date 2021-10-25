@@ -65,8 +65,6 @@ class ObjectMap:
     max_time = 0
     recent   = None
     for o in self.objects(type):
-      if time.time() - o.first_detected < cfg.ADD_THRESHOLD:
-        continue
       if o.last_detected > max_time:
         recent   = o
         max_time = o.last_detected
@@ -525,6 +523,7 @@ class Navigator:
     self.state       = None
     self.state_stack = queue.LifoQueue()
     self.last_update = time.time()
+    self.rotate      = False
 
     controller.travel_position_open()
 
@@ -578,10 +577,19 @@ class Navigator:
     ang = 0
     
     deadzone = 0 if self.state.ignore_dead_zone else cfg.ROTATE_DEAD_ZONE
+    if target_head != 0 and abs(target_head) > deadzone:
+      self.rotate = True
 
-    if target_head != 0 and abs(target_head) > cfg.ROTATE_DEAD_ZONE:
-      ang = rotate_speed * sign(target_head)
-    elif target_dist != 0:
+    if target_head == 0:
+      self.rotate = False
+
+    if self.rotate:
+      if abs(target_head) < cfg.ROTATE_STOP:
+        self.rotate = False
+      else:
+        ang = rotate_speed * sign(target_head)
+
+    if ang == 0 and target_dist != 0:
       vel = move_speed * sign(target_dist)
 
     # print('dist: {}, head: {}, vel: {}, ang: {}'.format(target_dist, target_head, vel, ang))
@@ -609,4 +617,5 @@ class Navigator:
     self.keep_target = False
     self.state_start_time   = time.time()
     self.state_first_update = True
+    self.controller.set_motors(0, 0)
     return True
