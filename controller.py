@@ -70,9 +70,9 @@ class Controller:
   def config(self):
     return cfg
 
-  def set_status(self, status:interop.Status):
+  def set_status(self, status_val:interop.Status):
     if has_status:
-      status.set(status)
+      status.set_status(status_val)
     else:
       print('Cannot Set Status. Status system not available.')
 
@@ -83,6 +83,7 @@ class Controller:
       print('Cannot Set Motors. Mobility system not available.')
 
   def set_motors(self, vel, ang):
+    print('vel: {}, ang: {}'.format(vel, ang))
     if has_mobility:
       mobility.update(vel * 100, -ang * 100)
     else:

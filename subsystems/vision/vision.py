@@ -25,7 +25,7 @@ def ObjectDetection(cap):
             scale = 0.5
             frame = cv2.resize(frame, (int(frame.shape[1] * scale), int(frame.shape[0] * scale)))
             frame = cv2.flip(frame,0)
-            frame = cv2.flip(frame,1)
+            # frame = cv2.flip(frame,1)
 
 
 

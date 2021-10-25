@@ -558,16 +558,19 @@ class Navigator:
       self.controller.set_motors(0, 0)
       return
 
+    print('target_head: ' + str(self.state.target_head))
+
     target_dist  = self.state.target_dist
-    target_head  = max(-1, min(1, self.state.target_head / cfg.CONTROL_HEAD_MAX))
+    rotate_dir   = sign(self.state.target_head)
+    allow_rotate = abs(rotate_dir) > cfg.ROTATE_DEAD_ZONE
     move_speed   = self.state.move_speed
     rotate_speed = self.state.rotate_speed
 
     vel = 0
     if target_dist != 0:
       vel = move_speed * sign(target_dist)
-    ang = self.pid.update(dt, -target_head, 0)
-    ang = ang * rotate_speed
+    ang = rotate_speed if allow_rotate else 0
+    ang = ang * rotate_dir
     self.controller.set_motors(vel, ang)
 
   # ///////////////////////////////////////////////////////////
