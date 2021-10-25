@@ -1,7 +1,6 @@
 from ..interop import SCS_ACTION, DetectedObject, ObjectType, Status
 
 from vector_2d import *
-from . import pid
 
 from enum import Enum
 
@@ -272,13 +271,14 @@ class ObjectTargetState(State):
     super().__init__(navigator)
     self.target_object = None
     self.target_type   = target_type
-    self.target_dist   = 10000
     self.target_last_detected_time = time.time()
 
   def update_target(self):
     # Get the most recently detected object of the target type
     most_recent = self.map.closest_of_type(self.target_type)
     if most_recent is not None:
+      if self.target_object is None:
+        self.target_dist = 10000 # Update target distance
       self.target_object = most_recent
 
     # If we are avoiding an obstacle delay pruning of the target object
@@ -288,6 +288,10 @@ class ObjectTargetState(State):
     # Check if we haven't detected a target for an extended period of time
     if time.time() - self.target_last_detected_time > 10:
       self.target_object = None # We lost the target
+      
+    if self.target_object is not None:
+      self.target_dist = min(self.target_dist, self.target_object.distance)
+      self.target_head = self.target_object.heading
 
 class NavRock(ObjectTargetState):
   def __init__(self, navigator):
@@ -304,9 +308,6 @@ class NavRock(ObjectTargetState):
     # If we detected a sample we should attempt to navigate to itt
     if len(self.map.objects(ObjectType.SAMPLE)) > 0:
       return DiscoverSample(self.navigator), None
-
-    self.target_dist = min(self.target_dist, self.target_object.distance)
-    self.target_head = self.target_object.heading
 
     if self.target_dist < cfg.NAV_DIST_ROCK:
       return FlipRockLookat(self.navigator), None
@@ -327,9 +328,6 @@ class NavSample(ObjectTargetState):
     if self.target_object is None:
       return DiscoverSample(self.navigator), None
 
-    self.target_dist = min(self.target_dist, self.target_object.distance)
-    self.target_head = self.target_object.heading
-
     if self.target_dist < cfg.NAV_DIST_SAMPLE:
       return CollectSampleLookat(self.navigator), None
 
@@ -348,9 +346,6 @@ class NavLander(ObjectTargetState):
 
     if self.target_object is None:
       return DiscoverLander(self.navigator), None
-
-    self.target_dist = min(self.target_dist, self.target_object.distance)
-    self.target_head = self.target_object.heading
 
     if self.target_dist < cfg.NAV_DIST_LANDER:
       return DropSampleLookat(self.navigator), None
@@ -373,7 +368,6 @@ class DropSampleLookat(ObjectTargetState):
     if self.target_object is None:
       return DiscoverSampleOrRock(self.navigator), None
 
-    self.target_head = self.target_object.heading
     self.target_dist = 0
 
     if abs(self.target_head) < cfg.LOOKAT_THRESH_LANDER:
@@ -421,7 +415,6 @@ class FlipRockLookat(ObjectTargetState):
       return DiscoverSampleOrRock(self.navigator), None
 
     self.target_dist  = 0
-    self.target_head = self.target_object.heading
 
     if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
       return FlipRockApproach(self.navigator), None
@@ -470,7 +463,6 @@ class CollectSampleLookat(ObjectTargetState):
     if self.target_object is None:
       return DiscoverSampleOrRock(self.navigator), None
 
-    self.target_head = self.target_object.heading
     self.target_dist = 0
 
     if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
@@ -518,7 +510,6 @@ class Navigator:
 
     cfg = controller.config()
 
-    self.pid         = pid.pid_controller(cfg.CONTROL_KP, cfg.CONTROL_KI, cfg.CONTROL_KD)
     self.controller  = controller
     self.map         = ObjectMap()
     self.state       = None
@@ -569,12 +560,11 @@ class Navigator:
     ang = 0
 
     if abs(target_head) > cfg.ROTATE_DEAD_ZONE:
-      rotate_dir   = sign(target_head)
-      ang = rotate_speed * rotate_dir
+      ang = rotate_speed * sign(target_head)
     elif target_dist != 0:
       vel = move_speed * sign(target_dist)
 
-    print('vel: {}, ang: {}'.format(vel, ang))
+    print('dist: {}, head: {}, vel: {}, ang: {}'.format(target_dist, target_head, vel, ang))
 
     self.controller.set_motors(vel, ang)
 
