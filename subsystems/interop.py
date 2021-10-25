@@ -29,11 +29,12 @@ class ObjectType(Enum):
 
 class DetectedObject:
   def __init__(self, type, heading, distance, angle):
-    self.type          = type
-    self.heading       = heading
-    self.distance      = distance
-    self.angle         = angle
-    self.last_detected = 0
+    self.type           = type
+    self.heading        = heading
+    self.distance       = distance
+    self.angle          = angle
+    self.last_detected  = 0
+    self.first_detected = 0
 
   def __str__(self):
     return '(type:{}, angle: {}d, dist: {})'.format(self.type, self.heading, self.distance)

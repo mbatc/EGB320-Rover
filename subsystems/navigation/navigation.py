@@ -65,6 +65,8 @@ class ObjectMap:
     max_time = 0
     recent   = None
     for o in self.objects(type):
+      if time.time() - o.first_detected < cfg.ADD_THRESHOLD:
+        continue
       if o.last_detected > max_time:
         recent   = o
         max_time = o.last_detected
@@ -95,7 +97,8 @@ class ObjectMap:
     # Add/update visible objects
     cur_time = time.time()
     for o in visible:
-      o.last_detected = cur_time
+      o.first_detected = cur_time
+      o.last_detected  = cur_time
       found = self.find(o)
       if found:
         found.type          = o.type
@@ -135,6 +138,7 @@ class State:
     self.state_first_update = True
     self.obstacle           = None
     self.obstacle_detected_time = 0
+    self.ignore_dead_zone   = False
 
   def is_first_update(self):
     return self.state_first_update
@@ -362,6 +366,7 @@ class DropSampleLookat(ObjectTargetState):
     super().__init__(navigator, ObjectType.LANDER)
     self.rotate_speed = cfg.ROTATE_SPEED_MED
     self.move_speed   = 0
+    self.ignore_dead_zone = True
 
   def update(self):
     self.update_target()
@@ -408,6 +413,7 @@ class FlipRockLookat(ObjectTargetState):
     super().__init__(navigator, ObjectType.ROCK)
     self.move_speed   = 0
     self.rotate_speed = cfg.ROTATE_SPEED_MED
+    self.ignore_dead_zone = True
 
   def update(self):
     self.update_target()
@@ -446,6 +452,9 @@ class FlipRock(ObjectTargetState):
 
   def update(self):
     self.controller.perform_action(SCS_ACTION.FLIP_ROCK)
+    self.controller.set_motors(-cfg.MOVE_SPEED_MED, 0)
+    time.sleep(1.2)
+    self.controller.set_motors(0, 0)
     return DiscoverSample(self.navigator), None
 
 # ///////////////////////////////////////////////////////////
@@ -456,6 +465,7 @@ class CollectSampleLookat(ObjectTargetState):
     super().__init__(navigator, ObjectType.SAMPLE)
     self.rotate_speed = cfg.ROTATE_SPEED_SLOW
     self.move_speed   = 0
+    self.ignore_dead_zone = True
 
   def update(self):
     self.update_target()
@@ -523,10 +533,18 @@ class Navigator:
   # ///////////////////////////////////////////////////////////
   # NAVIGATOR UPDATE
 
+  def set_start_time(self):
+    self.start_time = time.time()
+
   def update(self):
     self.controller.update()
 
-    self.map.update(self.controller.get_detected_objects())
+    object_list = self.controller.get_detected_objects()
+
+    if time.time() - self.start_time < 3: # Wait 3 seconds before starting
+      return None
+
+    self.map.update(object_list)
 
     if self.state is not None:
       if self.state.is_first_update():
@@ -558,13 +576,15 @@ class Navigator:
     
     vel = 0
     ang = 0
+    
+    deadzone = 0 if self.state.ignore_dead_zone else cfg.ROTATE_DEAD_ZONE
 
-    if abs(target_head) > cfg.ROTATE_DEAD_ZONE:
+    if target_head != 0 and abs(target_head) > cfg.ROTATE_DEAD_ZONE:
       ang = rotate_speed * sign(target_head)
     elif target_dist != 0:
       vel = move_speed * sign(target_dist)
 
-    print('dist: {}, head: {}, vel: {}, ang: {}'.format(target_dist, target_head, vel, ang))
+    # print('dist: {}, head: {}, vel: {}, ang: {}'.format(target_dist, target_head, vel, ang))
 
     self.controller.set_motors(vel, ang)
 

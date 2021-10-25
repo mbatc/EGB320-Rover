@@ -10,12 +10,12 @@ servo2 = None
 claw_pin = 27
 lift_pin = 26
 
-lift_flat = 1400
+lift_flat = 1500
 lift_travel = 1650
 lift_flip = 1800
 
 claw_open = 1300
-claw_close = 2250
+claw_close = 2450
 claw_travel = 1500
 
 pi = None
@@ -51,10 +51,11 @@ def SetToTravel():
     set_claw(claw_travel)
 
 def CollectSample_Prepare():
-    set_lift(lift_flat)
+    set_lift(lift_travel)
     set_claw(claw_open)
 
 def CollectSample():
+    set_lift(lift_flat)
     set_claw(claw_close)
     set_lift(lift_travel)
 

@@ -44,10 +44,12 @@ def ObjectDetection(cap):
                 pass
             elif ratio >= 1.3:
                 cv2.convertScaleAbs(frame, alpha = 1 / ratio, beta = 0)
+                return []
             else:    
                 pass
                 # Otherwise, adjust brightness to get the target brightness
                 cv2.convertScaleAbs(frame, alpha = 1 / ratio, beta = 0)
+                return []
 
             
             capwidth = frame.shape[1]

@@ -15,6 +15,8 @@ def navigate(navigator, initial_state=None, expected_state=None):
   if initial_state is not None:
     navigator.set_state(initial_state(navigator), nav.StateTransition.CLEAR_STACK)
 
+  navigator.set_start_time()
+
   while True:
     new_state = navigator.update()
     if expected_state is not None and isinstance(new_state, expected_state):
