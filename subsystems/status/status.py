@@ -24,7 +24,6 @@ def set_leds(red, yellow, green):
   GPIO.output(led_green,  GPIO.HIGH if green  else GPIO.LOW)
 
 def set_status(status:Status):
-  pass
-  #set_leds(status == Status.SEARCH_SAMPLE,
-  #  status == Status.COLLECT_SAMPLE,
-  #  status == Status.SEARCH_LANDER)
+  set_leds(status == Status.SEARCH_SAMPLE,
+    status == Status.COLLECT_SAMPLE,
+    status == Status.SEARCH_LANDER)

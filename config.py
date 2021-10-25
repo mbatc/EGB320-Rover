@@ -17,7 +17,7 @@ CONTROL_KI = 0.000
 CONTROL_KD = 0
 CONTROL_HEAD_MAX = 0.5 # 1 radian is max corrrection
 
-ROTATE_DEAD_ZONE = math.radians(2)
+ROTATE_DEAD_ZONE = 5
 
 ROTATE_SPEED_FAST = 0.4
 ROTATE_SPEED_MED  = 0.37

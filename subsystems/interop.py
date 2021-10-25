@@ -36,4 +36,4 @@ class DetectedObject:
     self.last_detected = 0
 
   def __str__(self):
-    return '(type:{}, angle: {}d, dist: {})'.format(self.type, degrees(self.heading), self.distance)
+    return '(type:{}, angle: {}d, dist: {})'.format(self.type, self.heading, self.distance)

@@ -20,9 +20,9 @@ def to_detected_objects(object_type, object_list):
   if len(object_list) > 0:
     if isinstance(object_list[0], list):
       for o in object_list:
-        detected_objects.append(DetectedObject(object_type, o[1], o[0] * env_params.meter_scale, 0))
+        detected_objects.append(DetectedObject(object_type, math.degrees(o[1]), o[0] * env_params.meter_scale, 0))
     else:
-      detected_objects.append(DetectedObject(object_type, object_list[1], object_list[0] * env_params.meter_scale, 1))
+      detected_objects.append(DetectedObject(object_type, math.degrees(object_list[1]), object_list[0] * env_params.meter_scale, 1))
 
   return detected_objects
 

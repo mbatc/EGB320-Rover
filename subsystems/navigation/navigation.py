@@ -561,7 +561,7 @@ class Navigator:
     target_dist  = self.state.target_dist
     target_head  = self.state.target_head
     rotate_dir   = sign(target_head)
-    allow_rotate = abs(target_head) > math.degrees(cfg.ROTATE_DEAD_ZONE)
+    allow_rotate = abs(target_head) > cfg.ROTATE_DEAD_ZONE
     move_speed   = self.state.move_speed
     rotate_speed = self.state.rotate_speed
 
