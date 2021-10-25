@@ -388,8 +388,8 @@ class DropSampleApproach(ObjectTargetState):
   def update(self):
     self.update_target()
 
-    self.target_head  = 0
-    self.target_dist  = 1
+    self.target_head = 0
+    self.target_dist = 1
 
     if self.state_duration() > cfg.APPROACH_TIME_LANDER:
       return DropSample(self.navigator), None
@@ -558,11 +558,10 @@ class Navigator:
       self.controller.set_motors(0, 0)
       return
 
-    print('target_head: ' + str(self.state.target_head))
-
     target_dist  = self.state.target_dist
-    rotate_dir   = sign(self.state.target_head)
-    allow_rotate = abs(rotate_dir) > cfg.ROTATE_DEAD_ZONE
+    target_head  = self.state.target_head
+    rotate_dir   = sign(target_head)
+    allow_rotate = abs(target_head) > cfg.ROTATE_DEAD_ZONE
     move_speed   = self.state.move_speed
     rotate_speed = self.state.rotate_speed
 
