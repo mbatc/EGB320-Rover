@@ -128,8 +128,8 @@ class State:
     self.navigator          = navigator
     self.controller         = navigator.controller
     self.map                = navigator.map
-    self.move_speed         = cfg.MOVE_SPEED_MED
-    self.rotate_speed       = cfg.ROTATE_SPEED_MED
+    self.move_speed         = 0
+    self.rotate_speed       = 0
     self.target_dist        = 0
     self.target_head        = 0
     self.state_start_time   = 0
@@ -205,8 +205,8 @@ class DiscoverBase(State):
 class DiscoverSampleOrRock(DiscoverBase):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_EXPLORE
+    self.rotate_speed = cfg.ROTATE_EXPLORE
 
   def update(self):
     if self.is_first_update():
@@ -224,8 +224,8 @@ class DiscoverSampleOrRock(DiscoverBase):
 class DiscoverSample(DiscoverBase):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_EXPLORE
+    self.rotate_speed = cfg.ROTATE_EXPLORE
 
   def update(self):
     # Check finish conditions
@@ -240,8 +240,8 @@ class DiscoverSample(DiscoverBase):
 class DiscoverObstacle(DiscoverBase):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_EXPLORE
+    self.rotate_speed = cfg.ROTATE_EXPLORE
 
   def update(self):
     # Check finish conditions
@@ -254,8 +254,8 @@ class DiscoverObstacle(DiscoverBase):
 class DiscoverLander(DiscoverBase):
   def __init__(self, navigator):
     super().__init__(navigator)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_EXPLORE
+    self.rotate_speed = cfg.ROTATE_EXPLORE
 
   def update(self):
     # Check finish conditions
@@ -298,8 +298,8 @@ class ObjectTargetState(State):
 class NavRock(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.ROCK)
-    self.move_speed   = cfg.MOVE_SPEED_MED
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_NAV
+    self.rotate_speed = cfg.ROTATE_NAV
 
   def update(self):
     self.update_target()
@@ -321,8 +321,8 @@ class NavRock(ObjectTargetState):
 class NavSample(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.SAMPLE)
-    self.move_speed = cfg.MOVE_SPEED_MED
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed = cfg.MOVE_NAV
+    self.rotate_speed = cfg.ROTATE_NAV
 
   def update(self):
     self.update_target()
@@ -340,8 +340,8 @@ class NavSample(ObjectTargetState):
 class NavLander(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.LANDER)
-    self.move_speed = cfg.MOVE_SPEED_MED
-    self.rotate_speed = cfg.ROTATE_SPEED_FAST
+    self.move_speed = cfg.MOVE_NAV
+    self.rotate_speed = cfg.ROTATE_NAV
 
   def update(self):
     self.update_target()
@@ -362,7 +362,7 @@ class NavLander(ObjectTargetState):
 class DropSampleLookat(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.LANDER)
-    self.rotate_speed = cfg.ROTATE_SPEED_MED
+    self.rotate_speed = cfg.ROTATE_LOOKAT
     self.move_speed   = 0
     self.ignore_dead_zone = True
 
@@ -381,7 +381,7 @@ class DropSampleLookat(ObjectTargetState):
 class DropSampleApproach(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.LANDER)
-    self.move_speed   = cfg.MOVE_SPEED_FAST
+    self.move_speed   = cfg.MOVE_DROP
     self.rotate_speed = 0
 
   def update(self):
@@ -390,7 +390,7 @@ class DropSampleApproach(ObjectTargetState):
     self.target_head = 0
     self.target_dist = 1
 
-    if self.state_duration() > cfg.APPROACH_TIME_LANDER:
+    if self.state_duration() > cfg.LOOKAT_TIMEOUT or self.state_duration() > cfg.APPROACH_TIME_LANDER:
       return DropSample(self.navigator), None
 
     return None, None
@@ -410,7 +410,7 @@ class FlipRockLookat(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.ROCK)
     self.move_speed   = 0
-    self.rotate_speed = cfg.ROTATE_SPEED_MED
+    self.rotate_speed = cfg.ROTATE_LOOKAT
     self.ignore_dead_zone = True
 
   def update(self):
@@ -420,7 +420,7 @@ class FlipRockLookat(ObjectTargetState):
 
     self.target_dist  = 0
 
-    if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
+    if self.state_duration() > cfg.LOOKAT_TIMEOUT or abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
       return FlipRockApproach(self.navigator), None
 
     return None, None
@@ -428,7 +428,7 @@ class FlipRockLookat(ObjectTargetState):
 class FlipRockApproach(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.ROCK)
-    self.move_speed   = cfg.MOVE_SPEED_MED
+    self.move_speed   = cfg.MOVE_FLIP
     self.rotate_speed = 0
 
   def update(self):
@@ -450,7 +450,7 @@ class FlipRock(ObjectTargetState):
 
   def update(self):
     self.controller.perform_action(SCS_ACTION.FLIP_ROCK)
-    self.controller.set_motors(-cfg.MOVE_SPEED_MED, 0)
+    self.controller.set_motors(-cfg.MOVE_NAV, 0)
     time.sleep(1.2)
     self.controller.set_motors(0, 0)
     return DiscoverSample(self.navigator), None
@@ -461,7 +461,7 @@ class FlipRock(ObjectTargetState):
 class CollectSampleLookat(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.SAMPLE)
-    self.rotate_speed = cfg.ROTATE_SPEED_SLOW
+    self.rotate_speed = cfg.ROTATE_LOOKAT
     self.move_speed   = 0
     self.ignore_dead_zone = True
 
@@ -473,7 +473,7 @@ class CollectSampleLookat(ObjectTargetState):
 
     self.target_dist = 0
 
-    if abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
+    if self.state_duration() > cfg.LOOKAT_TIMEOUT or abs(self.target_head) < cfg.LOOKAT_THRESH_SAMPLE:
       return CollectSampleApproach(self.navigator), None
       
     return None, None
@@ -481,8 +481,8 @@ class CollectSampleLookat(ObjectTargetState):
 class CollectSampleApproach(ObjectTargetState):
   def __init__(self, navigator):
     super().__init__(navigator, ObjectType.SAMPLE)
-    self.rotate_speed = cfg.ROTATE_SPEED_SLOW
-    self.move_speed   = cfg.MOVE_SPEED_SLOW
+    self.rotate_speed = 0
+    self.move_speed   = cfg.MOVE_COLLECT
 
   def update(self):
     if self.is_first_update():
@@ -518,12 +518,13 @@ class Navigator:
 
     cfg = controller.config()
 
-    self.controller  = controller
-    self.map         = ObjectMap()
-    self.state       = None
-    self.state_stack = queue.LifoQueue()
-    self.last_update = time.time()
-    self.rotate      = False
+    self.controller   = controller
+    self.map          = ObjectMap()
+    self.state        = None
+    self.state_stack  = queue.LifoQueue()
+    self.last_update  = time.time()
+    self.rotate       = False
+    self.last_heading_sign = 1
 
     controller.travel_position_open()
 
@@ -579,12 +580,15 @@ class Navigator:
     deadzone = 0 if self.state.ignore_dead_zone else cfg.ROTATE_DEAD_ZONE
     if target_head != 0 and abs(target_head) > deadzone:
       self.rotate = True
-
     if target_head == 0:
       self.rotate = False
-
+    elif self.last_heading_sign != 0 and self.last_heading_sign != sign(target_head):
+      self.rotate = False
+    print('dz: {}, target: {}'.format(deadzone, target_head))
+    self.last_heading_sign = sign(target_head)
+    
     if self.rotate:
-      if abs(target_head) < cfg.ROTATE_STOP:
+      if not self.state.ignore_dead_zone and abs(target_head) < cfg.ROTATE_DEAD_ZONE / 2:
         self.rotate = False
       else:
         ang = rotate_speed * sign(target_head)
@@ -618,4 +622,5 @@ class Navigator:
     self.state_start_time   = time.time()
     self.state_first_update = True
     self.controller.set_motors(0, 0)
+    self.last_heading_sign = 0
     return True
